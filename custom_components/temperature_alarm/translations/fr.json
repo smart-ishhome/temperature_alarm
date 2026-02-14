@@ -1,0 +1,69 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configuration de l'Alarme de Température",
+        "description": "Sélectionnez un capteur de température à surveiller pour les conditions d'alarme.",
+        "data": {
+          "source_entity": "Capteur de Température"
+        }
+      },
+      "mode": {
+        "title": "Sélectionner le Mode de Surveillance",
+        "description": "Choisissez comment surveiller la température.",
+        "data": {
+          "mode": "Mode de Surveillance"
+        },
+        "data_description": {
+          "mode": "Min Seulement : Alerte en dessous du minimum. Max Seulement : Alerte au-dessus du maximum. Min/Max : Alerte hors plage."
+        }
+      },
+      "thresholds": {
+        "title": "Définir les Seuils de Température",
+        "description": "Définissez les seuils de température pour l'alarme. Vous pourrez les ajuster plus tard via les entités numériques.",
+        "data": {
+          "min_temp": "Température Minimale",
+          "max_temp": "Température Maximale"
+        }
+      }
+    },
+    "error": {
+      "invalid_entity": "L'entité sélectionnée n'est pas un capteur de température valide.",
+      "min_greater_than_max": "La température minimale doit être inférieure à la température maximale."
+    },
+    "abort": {
+      "already_configured": "Ce capteur est déjà configuré pour la surveillance d'alarme de température."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options d'Alarme de Température",
+        "description": "Modifiez la configuration de l'alarme de température.",
+        "data": {
+          "mode": "Mode de Surveillance",
+          "min_temp": "Température Minimale",
+          "max_temp": "Température Maximale"
+        }
+      }
+    },
+    "error": {
+      "min_greater_than_max": "La température minimale doit être inférieure à la température maximale."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "temperature_alarm": {
+        "name": "Alarme de Température"
+      }
+    },
+    "number": {
+      "min_temperature": {
+        "name": "Température Minimale"
+      },
+      "max_temperature": {
+        "name": "Température Maximale"
+      }
+    }
+  }
+}

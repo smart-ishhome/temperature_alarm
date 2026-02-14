@@ -1,0 +1,69 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Temperature Alarm Setup",
+        "description": "Select a temperature sensor to monitor for alarm conditions.",
+        "data": {
+          "source_entity": "Temperature Sensor"
+        }
+      },
+      "mode": {
+        "title": "Select Monitoring Mode",
+        "description": "Choose how to monitor the temperature.",
+        "data": {
+          "mode": "Monitoring Mode"
+        },
+        "data_description": {
+          "mode": "Min Only: Alert when below minimum. Max Only: Alert when above maximum. Min/Max: Alert when outside range."
+        }
+      },
+      "thresholds": {
+        "title": "Set Temperature Thresholds",
+        "description": "Define the temperature thresholds for the alarm. You can adjust these later via the number entities.",
+        "data": {
+          "min_temp": "Minimum Temperature",
+          "max_temp": "Maximum Temperature"
+        }
+      }
+    },
+    "error": {
+      "invalid_entity": "Selected entity is not a valid temperature sensor.",
+      "min_greater_than_max": "Minimum temperature must be less than maximum temperature."
+    },
+    "abort": {
+      "already_configured": "This sensor is already configured for temperature alarm monitoring."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Temperature Alarm Options",
+        "description": "Modify the temperature alarm configuration.",
+        "data": {
+          "mode": "Monitoring Mode",
+          "min_temp": "Minimum Temperature",
+          "max_temp": "Maximum Temperature"
+        }
+      }
+    },
+    "error": {
+      "min_greater_than_max": "Minimum temperature must be less than maximum temperature."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "temperature_alarm": {
+        "name": "Temperature Alarm"
+      }
+    },
+    "number": {
+      "min_temperature": {
+        "name": "Minimum Temperature"
+      },
+      "max_temperature": {
+        "name": "Maximum Temperature"
+      }
+    }
+  }
+}

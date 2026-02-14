@@ -1,0 +1,69 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Temperatur-Alarm Einrichtung",
+        "description": "Wählen Sie einen Temperatursensor zur Überwachung von Alarmbedingungen aus.",
+        "data": {
+          "source_entity": "Temperatursensor"
+        }
+      },
+      "mode": {
+        "title": "Überwachungsmodus auswählen",
+        "description": "Wählen Sie, wie die Temperatur überwacht werden soll.",
+        "data": {
+          "mode": "Überwachungsmodus"
+        },
+        "data_description": {
+          "mode": "Nur Min: Warnung bei Unterschreitung des Minimums. Nur Max: Warnung bei Überschreitung des Maximums. Min/Max: Warnung außerhalb des Bereichs."
+        }
+      },
+      "thresholds": {
+        "title": "Temperaturschwellwerte festlegen",
+        "description": "Definieren Sie die Temperaturschwellwerte für den Alarm. Sie können diese später über die Zahlenentitäten anpassen.",
+        "data": {
+          "min_temp": "Mindesttemperatur",
+          "max_temp": "Höchsttemperatur"
+        }
+      }
+    },
+    "error": {
+      "invalid_entity": "Die ausgewählte Entität ist kein gültiger Temperatursensor.",
+      "min_greater_than_max": "Die Mindesttemperatur muss niedriger als die Höchsttemperatur sein."
+    },
+    "abort": {
+      "already_configured": "Dieser Sensor ist bereits für die Temperatur-Alarm-Überwachung konfiguriert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Temperatur-Alarm Optionen",
+        "description": "Ändern Sie die Temperatur-Alarm-Konfiguration.",
+        "data": {
+          "mode": "Überwachungsmodus",
+          "min_temp": "Mindesttemperatur",
+          "max_temp": "Höchsttemperatur"
+        }
+      }
+    },
+    "error": {
+      "min_greater_than_max": "Die Mindesttemperatur muss niedriger als die Höchsttemperatur sein."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "temperature_alarm": {
+        "name": "Temperatur-Alarm"
+      }
+    },
+    "number": {
+      "min_temperature": {
+        "name": "Mindesttemperatur"
+      },
+      "max_temperature": {
+        "name": "Höchsttemperatur"
+      }
+    }
+  }
+}
