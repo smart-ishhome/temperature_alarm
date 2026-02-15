@@ -1,0 +1,7 @@
+{
+    "name": "Temperature Alarm",
+    "filename": "temperature_alarm.zip",
+    "hide_default_branch": true,
+    "homeassistant": "2025.10.0",
+    "zip_release": true
+}
