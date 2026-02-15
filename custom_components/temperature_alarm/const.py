@@ -16,13 +16,13 @@ MODE_MIN_MAX = "min_max"
 MODES = [MODE_MIN_ONLY, MODE_MAX_ONLY, MODE_MIN_MAX]
 
 # Default values
-DEFAULT_MIN_TEMP = 18.0
-DEFAULT_MAX_TEMP = 25.0
+DEFAULT_MIN_TEMP = 68.0
+DEFAULT_MAX_TEMP = 80.0
 DEFAULT_MODE = MODE_MIN_MAX
 
 # Number entity constraints
 MIN_TEMP_LIMIT = -50.0
-MAX_TEMP_LIMIT = 100.0
+MAX_TEMP_LIMIT = 150.0
 TEMP_STEP = 0.5
 
 # Platforms - number must come before binary_sensor to ensure thresholds exist
