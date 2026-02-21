@@ -16,7 +16,6 @@ A Home Assistant custom integration that monitors temperature sensors and trigge
 - **Device Integration**: Entities attach to the source temperature sensor's device
 - **Adjustable Thresholds**: Real-time threshold adjustment via number entities
 - **Trigger Delay**: Optional delay before triggering alarm to avoid false positives
-- **Persistent Settings**: Thresholds are saved and restored across restarts
 - **Options Flow**: Change monitoring mode and thresholds after setup
 - **Multi-language Support**: English, French, German, and Spanish translations
 
@@ -35,14 +34,14 @@ A Home Assistant custom integration that monitors temperature sensors and trigge
 ## Configuration
 
 ### Initial Setup
-
-1. **Select Temperature Sensor**: Choose an existing temperature sensor from your system
-2. **Choose Monitoring Mode**:
+1. **Select Add Entity**: Click button to create a new entity
+2. **Select Temperature Sensor**: Choose an existing temperature sensor from your system
+3. **Choose Monitoring Mode**:
    - *Minimum Only*: Alert when too cold
    - *Maximum Only*: Alert when too hot  
    - *Min/Max Range*: Alert when outside range
-3. **Set Initial Thresholds**: Define your temperature limits (adjustable later)
-4. **Configure Trigger Delay** (Optional):
+4. **Set Initial Thresholds**: Define your temperature limits (adjustable later)
+5. **Configure Trigger Delay** (Optional):
    - Enable delay to prevent false alarms from brief temperature spikes
    - Set time delay (seconds) or update count threshold
    - Alarm triggers when EITHER condition is met
@@ -60,8 +59,8 @@ For each configured temperature alarm, the integration creates:
 | Entity Type | Name | Description |
 |-------------|------|-------------|
 | Binary Sensor | `Temperature Alarm` | Shows `On` when temperature is outside defined range |
-| Number | `Minimum Temperature` | Adjustable minimum threshold (min/min-max modes) |
-| Number | `Maximum Temperature` | Adjustable maximum threshold (max/min-max modes) |
+| Number | `Minimum Temperature` | (optional) Adjustable minimum threshold (min/min-max modes) |
+| Number | `Maximum Temperature` | (optional) Adjustable maximum threshold (max/min-max modes) |
 
 ### Binary Sensor States
 
@@ -92,9 +91,9 @@ Monitor your living room temperature and get alerted when it drops below 68°F:
 - **Use Case**: Trigger heating system and trigger alarmo environmental action
 
 ### Server Room Cooling
-Monitor server room temperature and alert when it gets too hot:
+Monitor server room temperature, shutdown server and alert when it gets too hot:
 - **Mode**: Maximum Only  
-- **Maximum Temperature**: 75°F
+- **Maximum Temperature**: 80°F
 - **Use Case**: Shutdown server and trigger emergency alerts
 
 ### Greenhouse Management
@@ -231,11 +230,12 @@ This project is licensed under the MIT License.
 
 ## Version History
 
-- **1.0.0** - Initial release
+- **0.9.0** - Initial release
   - GUI configuration flow
   - Three monitoring modes
   - Adjustable thresholds
   - Device attachment
+  - Trigger delay
   - Multi-language support
 
 ---
