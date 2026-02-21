@@ -20,10 +20,30 @@
       },
       "thresholds": {
         "title": "Set Temperature Thresholds",
-        "description": "Define the temperature thresholds for the alarm. You can adjust these later via the number entities.",
+        "description": "Define the temperature thresholds for the alarm. Enable the entity option to allow runtime adjustment.",
         "data": {
           "min_temp": "Minimum Temperature",
-          "max_temp": "Maximum Temperature"
+          "max_temp": "Maximum Temperature",
+          "create_min_entity": "Create adjustable min threshold entity",
+          "create_max_entity": "Create adjustable max threshold entity"
+        },
+        "data_description": {
+          "create_min_entity": "When enabled, creates a number entity to adjust the minimum threshold at runtime.",
+          "create_max_entity": "When enabled, creates a number entity to adjust the maximum threshold at runtime."
+        }
+      },
+      "delay": {
+        "title": "Configure Trigger Delay",
+        "description": "Optionally delay the alarm trigger. The alarm will trigger when EITHER the time elapses OR the update count is reached.",
+        "data": {
+          "delay_enabled": "Enable trigger delay",
+          "delay_time": "Time delay (seconds)",
+          "delay_updates": "Update count delay"
+        },
+        "data_description": {
+          "delay_enabled": "When enabled, the alarm will wait before triggering.",
+          "delay_time": "Trigger alarm after this many seconds in alarm condition.",
+          "delay_updates": "Trigger alarm after this many sensor updates in alarm condition."
         }
       }
     },
@@ -43,7 +63,12 @@
         "data": {
           "mode": "Monitoring Mode",
           "min_temp": "Minimum Temperature",
-          "max_temp": "Maximum Temperature"
+          "max_temp": "Maximum Temperature",
+          "create_min_entity": "Create adjustable min threshold entity",
+          "create_max_entity": "Create adjustable max threshold entity",
+          "delay_enabled": "Enable trigger delay",
+          "delay_time": "Time delay (seconds)",
+          "delay_updates": "Update count delay"
         }
       }
     },

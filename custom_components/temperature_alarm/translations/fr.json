@@ -20,10 +20,30 @@
       },
       "thresholds": {
         "title": "Définir les Seuils de Température",
-        "description": "Définissez les seuils de température pour l'alarme. Vous pourrez les ajuster plus tard via les entités numériques.",
+        "description": "Définissez les seuils de température pour l'alarme. Activez l'option d'entité pour permettre l'ajustement en temps réel.",
         "data": {
           "min_temp": "Température Minimale",
-          "max_temp": "Température Maximale"
+          "max_temp": "Température Maximale",
+          "create_min_entity": "Créer une entité de seuil min ajustable",
+          "create_max_entity": "Créer une entité de seuil max ajustable"
+        },
+        "data_description": {
+          "create_min_entity": "Lorsqu'activé, crée une entité numérique pour ajuster le seuil minimum en temps réel.",
+          "create_max_entity": "Lorsqu'activé, crée une entité numérique pour ajuster le seuil maximum en temps réel."
+        }
+      },
+      "delay": {
+        "title": "Configurer le Délai de Déclenchement",
+        "description": "Optionnellement, retardez le déclenchement de l'alarme. L'alarme se déclenchera lorsque L'UN DES DEUX se produit : le temps s'écoule OU le nombre de mises à jour est atteint.",
+        "data": {
+          "delay_enabled": "Activer le délai de déclenchement",
+          "delay_time": "Délai temporel (secondes)",
+          "delay_updates": "Délai par nombre de mises à jour"
+        },
+        "data_description": {
+          "delay_enabled": "Lorsqu'activé, l'alarme attendra avant de se déclencher.",
+          "delay_time": "Déclencher l'alarme après ce nombre de secondes en condition d'alarme.",
+          "delay_updates": "Déclencher l'alarme après ce nombre de mises à jour du capteur en condition d'alarme."
         }
       }
     },
@@ -43,7 +63,12 @@
         "data": {
           "mode": "Mode de Surveillance",
           "min_temp": "Température Minimale",
-          "max_temp": "Température Maximale"
+          "max_temp": "Température Maximale",
+          "create_min_entity": "Créer une entité de seuil min ajustable",
+          "create_max_entity": "Créer une entité de seuil max ajustable",
+          "delay_enabled": "Activer le délai de déclenchement",
+          "delay_time": "Délai temporel (secondes)",
+          "delay_updates": "Délai par nombre de mises à jour"
         }
       }
     },

@@ -20,10 +20,30 @@
       },
       "thresholds": {
         "title": "Temperaturschwellwerte festlegen",
-        "description": "Definieren Sie die Temperaturschwellwerte für den Alarm. Sie können diese später über die Zahlenentitäten anpassen.",
+        "description": "Definieren Sie die Temperaturschwellwerte für den Alarm. Aktivieren Sie die Entitätsoption für Laufzeitanpassung.",
         "data": {
           "min_temp": "Mindesttemperatur",
-          "max_temp": "Höchsttemperatur"
+          "max_temp": "Höchsttemperatur",
+          "create_min_entity": "Anpassbare Min-Schwellwert-Entität erstellen",
+          "create_max_entity": "Anpassbare Max-Schwellwert-Entität erstellen"
+        },
+        "data_description": {
+          "create_min_entity": "Wenn aktiviert, wird eine Zahlenentität erstellt, um den Mindestschwellwert zur Laufzeit anzupassen.",
+          "create_max_entity": "Wenn aktiviert, wird eine Zahlenentität erstellt, um den Höchstschwellwert zur Laufzeit anzupassen."
+        }
+      },
+      "delay": {
+        "title": "Auslöseverzögerung konfigurieren",
+        "description": "Optional: Verzögern Sie die Alarmauslösung. Der Alarm wird ausgelöst, wenn ENTWEDER die Zeit abgelaufen ist ODER die Aktualisierungsanzahl erreicht ist.",
+        "data": {
+          "delay_enabled": "Auslöseverzögerung aktivieren",
+          "delay_time": "Zeitverzögerung (Sekunden)",
+          "delay_updates": "Aktualisierungsanzahl-Verzögerung"
+        },
+        "data_description": {
+          "delay_enabled": "Wenn aktiviert, wartet der Alarm vor der Auslösung.",
+          "delay_time": "Alarm nach dieser Anzahl Sekunden im Alarmzustand auslösen.",
+          "delay_updates": "Alarm nach dieser Anzahl Sensoraktualisierungen im Alarmzustand auslösen."
         }
       }
     },
@@ -43,7 +63,12 @@
         "data": {
           "mode": "Überwachungsmodus",
           "min_temp": "Mindesttemperatur",
-          "max_temp": "Höchsttemperatur"
+          "max_temp": "Höchsttemperatur",
+          "create_min_entity": "Anpassbare Min-Schwellwert-Entität erstellen",
+          "create_max_entity": "Anpassbare Max-Schwellwert-Entität erstellen",
+          "delay_enabled": "Auslöseverzögerung aktivieren",
+          "delay_time": "Zeitverzögerung (Sekunden)",
+          "delay_updates": "Aktualisierungsanzahl-Verzögerung"
         }
       }
     },

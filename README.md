@@ -1,5 +1,9 @@
 # Temperature Alarm - Home Assistant Custom Integration
 
+<p align="center">
+  <img src="Icons/logo_original.png" alt="Temperature Alarm Logo" width="400">
+</p>
+
 A Home Assistant custom integration that monitors temperature sensors and triggers binary sensor alerts when temperatures fall outside user-defined ranges.
 
 ## Features
@@ -11,6 +15,7 @@ A Home Assistant custom integration that monitors temperature sensors and trigge
   - **Min/Max Range**: Alert when temperature is outside the defined range
 - **Device Integration**: Entities attach to the source temperature sensor's device
 - **Adjustable Thresholds**: Real-time threshold adjustment via number entities
+- **Trigger Delay**: Optional delay before triggering alarm to avoid false positives
 - **Persistent Settings**: Thresholds are saved and restored across restarts
 - **Options Flow**: Change monitoring mode and thresholds after setup
 - **Multi-language Support**: English, French, German, and Spanish translations
@@ -37,6 +42,10 @@ A Home Assistant custom integration that monitors temperature sensors and trigge
    - *Maximum Only*: Alert when too hot  
    - *Min/Max Range*: Alert when outside range
 3. **Set Initial Thresholds**: Define your temperature limits (adjustable later)
+4. **Configure Trigger Delay** (Optional):
+   - Enable delay to prevent false alarms from brief temperature spikes
+   - Set time delay (seconds) or update count threshold
+   - Alarm triggers when EITHER condition is met
 
 ### Post-Setup Configuration
 
@@ -68,6 +77,11 @@ The binary sensor provides additional attributes:
 - `current_temperature`: Current temperature reading
 - `min_threshold`: Current minimum threshold (if applicable)
 - `max_threshold`: Current maximum threshold (if applicable)
+- `delay_enabled`: Whether trigger delay is enabled (if delay configured)
+- `delay_time`: Time delay in seconds (if delay configured)
+- `delay_updates`: Update count threshold (if delay configured)
+- `alarm_pending`: Whether alarm condition exists but hasn't triggered yet (if delay active)
+- `alarm_pending_updates`: Number of updates in pending state (if delay active)
 
 ## Usage Examples
 
@@ -93,8 +107,9 @@ Maintain optimal plant growing conditions:
 ### Refrigerator Alert
 Monitor your refrigerator temperature and get alerted when it is above 45°F or below 32°F
 - **Mode**: Min/Max Range
-- **Minimum Temperature**: 45°F
-- **Maximum Temperature**: 32°F
+- **Minimum Temperature**: 32°F
+- **Maximum Temperature**: 45°F
+- **Trigger Delay**: 5 minutes (300 seconds) to avoid alerts during door opening
 - **Use Case**: Send notification to mobile device
 
 ## Automation Examples
@@ -133,6 +148,21 @@ automation:
       - service: switch.turn_on
         target:
           entity_id: switch.bedroom_heater
+```
+
+### Monitor Pending Alarm State
+
+```yaml
+automation:
+  - alias: "Notify When Alarm Pending"
+    trigger:
+      platform: template
+      value_template: "{{ state_attr('binary_sensor.freezer_temperature_alarm', 'alarm_pending') == true }}"
+    action:
+      - service: notify.mobile_app_your_phone
+        data:
+          title: "Temperature Warning"
+          message: "Freezer temperature has been out of range for {{ state_attr('binary_sensor.freezer_temperature_alarm', 'alarm_pending_updates') }} updates"
 ```
 
 ## Troubleshooting

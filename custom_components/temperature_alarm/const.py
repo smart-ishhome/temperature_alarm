@@ -16,14 +16,25 @@ MODE_MIN_MAX = "min_max"
 MODES = [MODE_MIN_ONLY, MODE_MAX_ONLY, MODE_MIN_MAX]
 
 # Default values
-DEFAULT_MIN_TEMP = 68.0
-DEFAULT_MAX_TEMP = 80.0
+DEFAULT_MIN_TEMP = 18.0
+DEFAULT_MAX_TEMP = 25.0
 DEFAULT_MODE = MODE_MIN_MAX
 
 # Number entity constraints
 MIN_TEMP_LIMIT = -50.0
-MAX_TEMP_LIMIT = 150.0
+MAX_TEMP_LIMIT = 100.0
 TEMP_STEP = 0.5
+
+# Trigger delay configuration
+CONF_DELAY_ENABLED = "delay_enabled"
+CONF_DELAY_TIME = "delay_time"
+CONF_DELAY_UPDATES = "delay_updates"
+DEFAULT_DELAY_TIME = 60  # seconds
+DEFAULT_DELAY_UPDATES = 3  # update count
+
+# Optional entity creation
+CONF_CREATE_MIN_ENTITY = "create_min_entity"
+CONF_CREATE_MAX_ENTITY = "create_max_entity"
 
 # Platforms - number must come before binary_sensor to ensure thresholds exist
 PLATFORMS = ["number", "binary_sensor"]
