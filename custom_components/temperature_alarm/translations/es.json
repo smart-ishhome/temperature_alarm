@@ -20,10 +20,30 @@
       },
       "thresholds": {
         "title": "Establecer Umbrales de Temperatura",
-        "description": "Defina los umbrales de temperatura para la alarma. Puede ajustarlos más tarde a través de las entidades numéricas.",
+        "description": "Defina los umbrales de temperatura para la alarma. Active la opción de entidad para permitir ajustes en tiempo de ejecución.",
         "data": {
           "min_temp": "Temperatura Mínima",
-          "max_temp": "Temperatura Máxima"
+          "max_temp": "Temperatura Máxima",
+          "create_min_entity": "Crear entidad de umbral mínimo ajustable",
+          "create_max_entity": "Crear entidad de umbral máximo ajustable"
+        },
+        "data_description": {
+          "create_min_entity": "Cuando está habilitado, crea una entidad numérica para ajustar el umbral mínimo en tiempo de ejecución.",
+          "create_max_entity": "Cuando está habilitado, crea una entidad numérica para ajustar el umbral máximo en tiempo de ejecución."
+        }
+      },
+      "delay": {
+        "title": "Configurar Retardo de Activación",
+        "description": "Opcionalmente retarde la activación de la alarma. La alarma se activará cuando CUALQUIERA de los dos ocurra: el tiempo transcurra O se alcance el conteo de actualizaciones.",
+        "data": {
+          "delay_enabled": "Habilitar retardo de activación",
+          "delay_time": "Retardo de tiempo (segundos)",
+          "delay_updates": "Retardo por conteo de actualizaciones"
+        },
+        "data_description": {
+          "delay_enabled": "Cuando está habilitado, la alarma esperará antes de activarse.",
+          "delay_time": "Activar alarma después de estos segundos en condición de alarma.",
+          "delay_updates": "Activar alarma después de estas actualizaciones del sensor en condición de alarma."
         }
       }
     },
@@ -43,7 +63,12 @@
         "data": {
           "mode": "Modo de Monitoreo",
           "min_temp": "Temperatura Mínima",
-          "max_temp": "Temperatura Máxima"
+          "max_temp": "Temperatura Máxima",
+          "create_min_entity": "Crear entidad de umbral mínimo ajustable",
+          "create_max_entity": "Crear entidad de umbral máximo ajustable",
+          "delay_enabled": "Habilitar retardo de activación",
+          "delay_time": "Retardo de tiempo (segundos)",
+          "delay_updates": "Retardo por conteo de actualizaciones"
         }
       }
     },

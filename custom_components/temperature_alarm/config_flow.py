@@ -15,10 +15,17 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 
 from .const import (
+    CONF_CREATE_MAX_ENTITY,
+    CONF_CREATE_MIN_ENTITY,
+    CONF_DELAY_ENABLED,
+    CONF_DELAY_TIME,
+    CONF_DELAY_UPDATES,
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
     CONF_MODE,
     CONF_SOURCE_ENTITY,
+    DEFAULT_DELAY_TIME,
+    DEFAULT_DELAY_UPDATES,
     DEFAULT_MAX_TEMP,
     DEFAULT_MIN_TEMP,
     DEFAULT_MODE,
@@ -141,6 +148,8 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             min_temp = user_input.get(CONF_MIN_TEMP)
             max_temp = user_input.get(CONF_MAX_TEMP)
+            create_min = user_input.get(CONF_CREATE_MIN_ENTITY, True)
+            create_max = user_input.get(CONF_CREATE_MAX_ENTITY, True)
 
             # Validate min < max for min_max mode
             if mode == MODE_MIN_MAX and min_temp is not None and max_temp is not None:
@@ -150,16 +159,10 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not errors:
                 self._data[CONF_MIN_TEMP] = min_temp
                 self._data[CONF_MAX_TEMP] = max_temp
+                self._data[CONF_CREATE_MIN_ENTITY] = create_min
+                self._data[CONF_CREATE_MAX_ENTITY] = create_max
 
-                # Create friendly title
-                entity_reg = er.async_get(self.hass)
-                entity_entry = entity_reg.async_get(self._data[CONF_SOURCE_ENTITY])
-                if entity_entry and entity_entry.name:
-                    title = f"{entity_entry.name} Alarm"
-                else:
-                    title = f"Temperature Alarm ({self._data[CONF_SOURCE_ENTITY]})"
-
-                return self.async_create_entry(title=title, data=self._data)
+                return await self.async_step_delay()
 
         # Build schema based on mode
         schema_dict: dict[Any, Any] = {}
@@ -176,6 +179,9 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 )
             )
+            schema_dict[vol.Required(CONF_CREATE_MIN_ENTITY, default=True)] = (
+                selector.BooleanSelector()
+            )
 
         if mode in (MODE_MAX_ONLY, MODE_MIN_MAX):
             schema_dict[vol.Required(CONF_MAX_TEMP, default=DEFAULT_MAX_TEMP)] = (
@@ -189,11 +195,61 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 )
             )
+            schema_dict[vol.Required(CONF_CREATE_MAX_ENTITY, default=True)] = (
+                selector.BooleanSelector()
+            )
 
         return self.async_show_form(
             step_id="thresholds",
             data_schema=vol.Schema(schema_dict),
             errors=errors,
+        )
+
+    async def async_step_delay(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the trigger delay configuration step."""
+        if user_input is not None:
+            self._data[CONF_DELAY_ENABLED] = user_input.get(CONF_DELAY_ENABLED, False)
+            self._data[CONF_DELAY_TIME] = user_input.get(CONF_DELAY_TIME, DEFAULT_DELAY_TIME)
+            self._data[CONF_DELAY_UPDATES] = user_input.get(CONF_DELAY_UPDATES, DEFAULT_DELAY_UPDATES)
+
+            # Create friendly title
+            entity_reg = er.async_get(self.hass)
+            entity_entry = entity_reg.async_get(self._data[CONF_SOURCE_ENTITY])
+            if entity_entry and entity_entry.name:
+                title = f"{entity_entry.name} Alarm"
+            else:
+                title = f"Temperature Alarm ({self._data[CONF_SOURCE_ENTITY]})"
+
+            return self.async_create_entry(title=title, data=self._data)
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_DELAY_ENABLED, default=False): selector.BooleanSelector(),
+                vol.Required(CONF_DELAY_TIME, default=DEFAULT_DELAY_TIME): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=1,
+                        max=3600,
+                        step=1,
+                        unit_of_measurement="seconds",
+                        mode=selector.NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Required(CONF_DELAY_UPDATES, default=DEFAULT_DELAY_UPDATES): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=1,
+                        max=100,
+                        step=1,
+                        mode=selector.NumberSelectorMode.BOX,
+                    )
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="delay",
+            data_schema=schema,
         )
 
     @staticmethod
@@ -221,6 +277,11 @@ class TemperatureAlarmOptionsFlow(config_entries.OptionsFlow):
         current_mode = self._config_entry.data.get(CONF_MODE, DEFAULT_MODE)
         current_min = self._config_entry.data.get(CONF_MIN_TEMP, DEFAULT_MIN_TEMP)
         current_max = self._config_entry.data.get(CONF_MAX_TEMP, DEFAULT_MAX_TEMP)
+        current_create_min = self._config_entry.data.get(CONF_CREATE_MIN_ENTITY, True)
+        current_create_max = self._config_entry.data.get(CONF_CREATE_MAX_ENTITY, True)
+        current_delay_enabled = self._config_entry.data.get(CONF_DELAY_ENABLED, False)
+        current_delay_time = self._config_entry.data.get(CONF_DELAY_TIME, DEFAULT_DELAY_TIME)
+        current_delay_updates = self._config_entry.data.get(CONF_DELAY_UPDATES, DEFAULT_DELAY_UPDATES)
         source_entity = self._config_entry.data.get(CONF_SOURCE_ENTITY)
         
         unit = _get_entity_unit(self.hass, source_entity)
@@ -229,6 +290,11 @@ class TemperatureAlarmOptionsFlow(config_entries.OptionsFlow):
             new_mode = user_input.get(CONF_MODE, current_mode)
             new_min = user_input.get(CONF_MIN_TEMP)
             new_max = user_input.get(CONF_MAX_TEMP)
+            new_create_min = user_input.get(CONF_CREATE_MIN_ENTITY, True)
+            new_create_max = user_input.get(CONF_CREATE_MAX_ENTITY, True)
+            new_delay_enabled = user_input.get(CONF_DELAY_ENABLED, False)
+            new_delay_time = user_input.get(CONF_DELAY_TIME, DEFAULT_DELAY_TIME)
+            new_delay_updates = user_input.get(CONF_DELAY_UPDATES, DEFAULT_DELAY_UPDATES)
 
             # Validate min < max for min_max mode
             if new_mode == MODE_MIN_MAX and new_min is not None and new_max is not None:
@@ -240,6 +306,11 @@ class TemperatureAlarmOptionsFlow(config_entries.OptionsFlow):
                 new_data = {
                     **self._config_entry.data,
                     CONF_MODE: new_mode,
+                    CONF_CREATE_MIN_ENTITY: new_create_min,
+                    CONF_CREATE_MAX_ENTITY: new_create_max,
+                    CONF_DELAY_ENABLED: new_delay_enabled,
+                    CONF_DELAY_TIME: new_delay_time,
+                    CONF_DELAY_UPDATES: new_delay_updates,
                 }
                 if new_min is not None:
                     new_data[CONF_MIN_TEMP] = new_min
@@ -280,12 +351,32 @@ class TemperatureAlarmOptionsFlow(config_entries.OptionsFlow):
                     mode=selector.NumberSelectorMode.BOX,
                 )
             ),
+            vol.Required(CONF_CREATE_MIN_ENTITY, default=current_create_min): selector.BooleanSelector(),
             vol.Optional(CONF_MAX_TEMP, default=current_max): selector.NumberSelector(
                 selector.NumberSelectorConfig(
                     min=MIN_TEMP_LIMIT,
                     max=MAX_TEMP_LIMIT,
                     step=TEMP_STEP,
                     unit_of_measurement=unit,
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Required(CONF_CREATE_MAX_ENTITY, default=current_create_max): selector.BooleanSelector(),
+            vol.Required(CONF_DELAY_ENABLED, default=current_delay_enabled): selector.BooleanSelector(),
+            vol.Required(CONF_DELAY_TIME, default=current_delay_time): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=1,
+                    max=3600,
+                    step=1,
+                    unit_of_measurement="seconds",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Required(CONF_DELAY_UPDATES, default=current_delay_updates): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=1,
+                    max=100,
+                    step=1,
                     mode=selector.NumberSelectorMode.BOX,
                 )
             ),
