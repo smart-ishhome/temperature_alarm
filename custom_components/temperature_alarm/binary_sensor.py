@@ -70,6 +70,7 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
     _attr_has_entity_name = True
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_translation_key = "temperature_alarm"
+    _attr_icon = "mdi:thermometer-alert"
     _attr_should_poll = False
 
     def __init__(
@@ -238,12 +239,32 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
             try:
                 value = entity.native_value
                 if value is not None:
+                    _LOGGER.debug(
+                        "Using %s threshold from entity: %.2f",
+                        threshold_type,
+                        value,
+                    )
                     return float(value)
-            except (ValueError, TypeError, AttributeError):
-                pass
+                else:
+                    _LOGGER.debug(
+                        "%s threshold entity exists but value is None, falling back to config",
+                        threshold_type,
+                    )
+            except (ValueError, TypeError, AttributeError) as err:
+                _LOGGER.debug(
+                    "Error getting %s threshold from entity: %s, falling back to config",
+                    threshold_type,
+                    err,
+                )
         
         # Fall back to config value
-        return self._entry.data.get(config_key)
+        config_value = self._entry.data.get(config_key)
+        _LOGGER.debug(
+            "Using %s threshold from config: %s",
+            threshold_type,
+            config_value,
+        )
+        return config_value
 
     @callback
     def _handle_delay_logic(self, is_alarm_condition: bool) -> None:

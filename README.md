@@ -249,6 +249,14 @@ This project is licensed under the MIT License.
   - Trigger delay
   - Multi-language support
 
+- **0.9.1** - Feature/bug fix update
+  - Added option for threshold entities 
+  - Updated Icons
+  - Updated min/max limits
+  - added debug logs
+  - fixed thresold entites not saving after reboot
+  - removed icon dir from component dir
+
 ---
 
 **Need Help?** Check the [troubleshooting section](#troubleshooting) or enable debug logging to diagnose issues.
