@@ -20,21 +20,32 @@ A Home Assistant custom integration that monitors temperature sensors and trigge
 - **Multi-language Support**: English, French, German, and Spanish translations
 
 ## Installation
-
 ### HACS (Recommended)
-*Coming soon - this integration is not yet available in HACS*
 
-### Manual Installation
+*This custom integration is still not available by default in HACS, please add it as a custom repository*
 
-1. Copy the `temperature_alarm` folder to your `config/custom_components/` directory
-2. Restart Home Assistant
-3. Go to **Settings → Devices & Services → Add Integration**
-4. Search for "Temperature Alarm" and click to add
+1. In HACS, in the top right corner go to **Overflow Menu** → **Custom repositories**
+2. For **repository** fill in `https://github.com/smart-ishhome/temperature_alarm` for type select **integration**. Click on **Add**.
+2. Close the custom repority window
+3. In HACS Search for **Temperature Alarm**. Then in the bottom right corner click **Download** to install.
+4. Restart Home Assistant
+
+### Manual Installation 
+
+1. Download the temperature_alarm.zip
+ from `https://github.com/smart-ishhome/temperature_alarm/releases`
+2. Extract the contents into a **temperature_alarm** folder
+3. Copy the `temperature_alarm` folder to your `config/custom_components/` directory
+3. Restart Home Assistant
 
 ## Configuration
 
 ### Initial Setup
-1. **Select Add Entity**: Click button to create a new entity
+1. **Add Integration**:  Go to Settings → Devices & services → Add Integration → Temperature Alarm  
+   <br>
+   <a href="https://my.home-assistant.io/redirect/config_flow_start?domain=temperature_alarm" class="my badge" target="_blank"><img src="https://my.home-assistant.io/badges/config_flow_start.svg"></a>
+   <br>
+
 2. **Select Temperature Sensor**: Choose an existing temperature sensor from your system
 3. **Choose Monitoring Mode**:
    - *Minimum Only*: Alert when too cold
