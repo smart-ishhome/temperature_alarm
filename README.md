@@ -257,6 +257,8 @@ This project is licensed under the MIT License.
   - fixed thresold entites not saving after reboot
   - removed icon dir from component dir
 
+- **0.9.2** - 2026.3 icon update
+  - Added icons to custom_components/temperature_alarm/brand
 ---
 
 **Need Help?** Check the [troubleshooting section](#troubleshooting) or enable debug logging to diagnose issues.
