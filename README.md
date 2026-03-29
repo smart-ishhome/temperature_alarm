@@ -8,27 +8,24 @@ A Home Assistant custom integration that monitors temperature sensors and trigge
 
 ## Features
 
-- **GUI Configuration**: Easy setup through Home Assistant's configuration flow
 - **Multiple Monitoring Modes**:
   - **Minimum Only**: Alert when temperature drops below threshold
   - **Maximum Only**: Alert when temperature exceeds threshold  
   - **Min/Max Range**: Alert when temperature is outside the defined range
 - **Device Integration**: Entities attach to the source temperature sensor's device
-- **Adjustable Thresholds**: Real-time threshold adjustment via number entities
+- **Adjustable Thresholds**: Threshold adjustment via number entities
 - **Trigger Delay**: Optional delay before triggering alarm to avoid false positives
-- **Options Flow**: Change monitoring mode and thresholds after setup
 - **Multi-language Support**: English, French, German, and Spanish translations
 
 ## Installation
 ### HACS (Recommended)
 
-*This custom integration is still not available by default in HACS, please add it as a custom repository*
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=smart-ishhome&repository=https%3A%2F%2Fgithub.com%2Fsmart-ishhome%2Ftemperature_alarm)
 
-1. In HACS, in the top right corner go to **Overflow Menu** → **Custom repositories**
-2. For **repository** fill in `https://github.com/smart-ishhome/temperature_alarm` for type select **integration**. Click on **Add**.
-2. Close the custom repority window
-3. In HACS Search for **Temperature Alarm**. Then in the bottom right corner click **Download** to install.
-4. Restart Home Assistant
+1. **Ensure HACS is installed:** If you don't have the [Home Assistant Community Store (HACS)](https://hacs.xyz/) installed, follow their instructions to set it up first.
+2. **Navigate to HACS:** Open your Home Assistant frontend and go to HACS in the sidebar.
+3. **Search for Temperature Alarm:** Search for "Area Occupancy Detection" and select then **Download**.
+4. **Restart Home Assistant:** After the download is complete, restart your Home Assistant instance
 
 ### Manual Installation 
 
@@ -46,10 +43,10 @@ A Home Assistant custom integration that monitors temperature sensors and trigge
    <a href="https://my.home-assistant.io/redirect/config_flow_start?domain=temperature_alarm" class="my badge" target="_blank"><img src="https://my.home-assistant.io/badges/config_flow_start.svg"></a>
    <br>
 
-2. **Select Temperature Sensor**: Choose an existing temperature sensor from your system
+2. **Select Temperature Sensor**: Choose an existing temperature sensor
 3. **Choose Monitoring Mode**:
-   - *Minimum Only*: Alert when too cold
-   - *Maximum Only*: Alert when too hot  
+   - *Minimum*: Alert when too cold
+   - *Maximum*: Alert when too hot  
    - *Min/Max Range*: Alert when outside range
 4. **Set Initial Thresholds**: Define your temperature limits (adjustable later)
 5. **Configure Trigger Delay** (Optional):
@@ -259,6 +256,13 @@ This project is licensed under the MIT License.
 
 - **0.9.2** - 2026.3 icon update
   - Added icons to custom_components/temperature_alarm/brand
+
+- **0.9.3** - Repo/Device Class updates
+  - Added .github issue templates
+  - Added dependabot configuration
+  - Change device class from problem to safety 
+  - Updated readme
+
 ---
 
 **Need Help?** Check the [troubleshooting section](#troubleshooting) or enable debug logging to diagnose issues.
