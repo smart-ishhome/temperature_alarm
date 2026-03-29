@@ -68,7 +68,7 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
     """Binary sensor for temperature alarm state."""
 
     _attr_has_entity_name = True
-    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_device_class = BinarySensorDeviceClass.SAFETY
     _attr_translation_key = "temperature_alarm"
     _attr_icon = "mdi:thermometer-alert"
     _attr_should_poll = False
