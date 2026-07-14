@@ -34,5 +34,6 @@ DEFAULT_DELAY_UPDATES = 3  # update count
 CONF_CREATE_MIN_ENTITY = "create_min_entity"
 CONF_CREATE_MAX_ENTITY = "create_max_entity"
 
-# Platforms - number must come before binary_sensor to ensure thresholds exist
+# Platforms (setup order is enforced in __init__.async_setup_entry:
+# number first, so Threshold Entities exist before the Alarm subscribes)
 PLATFORMS = ["number", "binary_sensor"]

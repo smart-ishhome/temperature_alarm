@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from typing import Any
 
 from homeassistant.components.number import (
     NumberDeviceClass,
@@ -17,22 +17,16 @@ from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
-    CONF_CREATE_MAX_ENTITY,
-    CONF_CREATE_MIN_ENTITY,
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
-    CONF_MODE,
-    CONF_SOURCE_ENTITY,
     DEFAULT_MAX_TEMP,
     DEFAULT_MIN_TEMP,
     DOMAIN,
     MAX_TEMP_LIMIT,
     MIN_TEMP_LIMIT,
-    MODE_MAX_ONLY,
-    MODE_MIN_MAX,
-    MODE_MIN_ONLY,
     TEMP_STEP,
 )
+from .thresholds import threshold_unique_id, wants_entity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,58 +48,26 @@ async def async_setup_entry(
     data = hass.data[DOMAIN][entry.entry_id]
     source_entity_id = data["source_entity_id"]
     device_info = data.get("device_info")
-    
-    mode = entry.data.get(CONF_MODE, MODE_MIN_MAX)
-    initial_min = entry.data.get(CONF_MIN_TEMP, DEFAULT_MIN_TEMP)
-    initial_max = entry.data.get(CONF_MAX_TEMP, DEFAULT_MAX_TEMP)
-    create_min_entity = entry.data.get(CONF_CREATE_MIN_ENTITY, True)
-    create_max_entity = entry.data.get(CONF_CREATE_MAX_ENTITY, True)
-    
-    _LOGGER.debug(
-        "Number entity setup: mode=%s, create_min=%s, create_max=%s, min_temp=%s, max_temp=%s",
-        mode,
-        create_min_entity,
-        create_max_entity,
-        initial_min,
-        initial_max,
-    )
-    
+
+    initial_value = {
+        "min": entry.data.get(CONF_MIN_TEMP, DEFAULT_MIN_TEMP),
+        "max": entry.data.get(CONF_MAX_TEMP, DEFAULT_MAX_TEMP),
+    }
     unit = _get_entity_unit(hass, source_entity_id)
-    
-    entities: list[TemperatureThresholdNumber] = []
-    min_entity: TemperatureThresholdNumber | None = None
-    max_entity: TemperatureThresholdNumber | None = None
-    
-    # Create min temperature entity if needed and user wants it as an entity
-    if mode in (MODE_MIN_ONLY, MODE_MIN_MAX) and create_min_entity:
-        min_entity = TemperatureThresholdNumber(
+
+    entities = [
+        TemperatureThresholdNumber(
             entry=entry,
             source_entity_id=source_entity_id,
             device_info=device_info,
-            threshold_type="min",
-            initial_value=initial_min,
+            threshold_type=kind,
+            initial_value=initial_value[kind],
             unit=unit,
         )
-        entities.append(min_entity)
-        _LOGGER.debug("Created min temperature entity")
-    
-    # Create max temperature entity if needed and user wants it as an entity
-    if mode in (MODE_MAX_ONLY, MODE_MIN_MAX) and create_max_entity:
-        max_entity = TemperatureThresholdNumber(
-            entry=entry,
-            source_entity_id=source_entity_id,
-            device_info=device_info,
-            threshold_type="max",
-            initial_value=initial_max,
-            unit=unit,
-        )
-        entities.append(max_entity)
-        _LOGGER.debug("Created max temperature entity")
-    
-    # Store references to threshold entities for binary sensor to use
-    data["min_threshold_entity"] = min_entity
-    data["max_threshold_entity"] = max_entity
-    
+        for kind in ("min", "max")
+        if wants_entity(entry.data, kind)
+    ]
+
     _LOGGER.debug("Adding %d number entities", len(entities))
     async_add_entities(entities)
 
@@ -137,19 +99,16 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
         self._initial_value = initial_value
         self._attr_native_value = initial_value
         self._attr_native_unit_of_measurement = unit
-        self._update_callbacks: list[Callable[[], None]] = []
-        
+
         _LOGGER.debug(
             "Initializing %s threshold entity with value %.2f %s",
             threshold_type,
             initial_value,
             unit,
         )
-        
+
         # Set unique ID and translation key
-        self._attr_unique_id = (
-            f"{DOMAIN}_{source_entity_id}_{threshold_type}_temperature"
-        )
+        self._attr_unique_id = threshold_unique_id(source_entity_id, threshold_type)
         self._attr_translation_key = f"{threshold_type}_temperature"
         
         # Set icon based on threshold type
@@ -161,10 +120,6 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
         # Device info - attach to source device if available
         if device_info:
             self._attr_device_info = DeviceInfo(**device_info)
-
-    def register_update_callback(self, callback: Callable[[], None]) -> None:
-        """Register a callback to be called when the value changes."""
-        self._update_callbacks.append(callback)
 
     async def async_added_to_hass(self) -> None:
         """Restore previous state when added to hass."""
@@ -211,10 +166,6 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
         )
         self._attr_native_value = value
         self.async_write_ha_state()
-        
-        # Notify registered callbacks that the threshold changed
-        for callback in self._update_callbacks:
-            callback()
 
     @property
     def native_unit_of_measurement(self) -> str | None:

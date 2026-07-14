@@ -26,10 +26,7 @@ from .const import (
     CONF_DELAY_ENABLED,
     CONF_DELAY_TIME,
     CONF_DELAY_UPDATES,
-    CONF_MAX_TEMP,
-    CONF_MIN_TEMP,
     CONF_MODE,
-    CONF_SOURCE_ENTITY,
     DEFAULT_DELAY_TIME,
     DEFAULT_DELAY_UPDATES,
     DOMAIN,
@@ -38,6 +35,7 @@ from .const import (
     MODE_MIN_ONLY,
 )
 from .evaluator import AlarmEvaluator, Thresholds, Trigger, Verdict
+from .thresholds import ThresholdResolver
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,18 +51,13 @@ async def async_setup_entry(
     device_info = data.get("device_info")
     mode = entry.data.get(CONF_MODE, MODE_MIN_MAX)
 
-    # Get threshold entity references from number platform
-    min_threshold_entity = data.get("min_threshold_entity")
-    max_threshold_entity = data.get("max_threshold_entity")
-
     async_add_entities([
         TemperatureAlarmBinarySensor(
             entry=entry,
             source_entity_id=source_entity_id,
             device_info=device_info,
             mode=mode,
-            min_threshold_entity=min_threshold_entity,
-            max_threshold_entity=max_threshold_entity,
+            resolver=ThresholdResolver(hass, entry),
         )
     ], update_before_add=True)
 
@@ -84,8 +77,7 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
         source_entity_id: str,
         device_info: dict[str, Any] | None,
         mode: str,
-        min_threshold_entity: Any | None = None,
-        max_threshold_entity: Any | None = None,
+        resolver: ThresholdResolver,
     ) -> None:
         """Initialize the binary sensor."""
         self._entry = entry
@@ -93,9 +85,9 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
         self._mode = mode
         self._attr_is_on = None
 
-        # Store direct references to threshold entities
-        self._min_threshold_entity = min_threshold_entity
-        self._max_threshold_entity = max_threshold_entity
+        # Threshold Resolution owns where Thresholds come from
+        self._resolver = resolver
+        self._last_thresholds: Thresholds | None = None
 
         # Delay configuration (kept for extra_state_attributes)
         self._delay_enabled = entry.data.get(CONF_DELAY_ENABLED, False)
@@ -124,15 +116,10 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
         await super().async_added_to_hass()
 
         _LOGGER.debug(
-            "Temperature Alarm for %s: mode=%s, has_min_entity=%s, has_max_entity=%s",
-            self._source_entity_id,
-            self._mode,
-            self._min_threshold_entity is not None,
-            self._max_threshold_entity is not None,
+            "Temperature Alarm for %s: mode=%s", self._source_entity_id, self._mode
         )
 
         # Track source temperature entity for state changes
-        # We read threshold values directly from the entity objects, not via state machine
         self.async_on_remove(
             async_track_state_change_event(
                 self.hass,
@@ -141,15 +128,10 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
             )
         )
 
-        # Register callbacks with threshold entities to re-evaluate when thresholds change
-        if self._min_threshold_entity is not None:
-            self._min_threshold_entity.register_update_callback(
-                self._async_threshold_changed
-            )
-        if self._max_threshold_entity is not None:
-            self._max_threshold_entity.register_update_callback(
-                self._async_threshold_changed
-            )
+        # Re-evaluate whenever a Threshold Entity changes
+        self.async_on_remove(
+            self._resolver.async_subscribe(self._async_threshold_changed)
+        )
 
         # Make sure a pending re-check timer never fires after removal
         self.async_on_remove(self._cancel_delay_timer)
@@ -173,7 +155,8 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
     def _refresh(self, trigger: Trigger) -> None:
         """Evaluate the alarm and apply the Verdict to HA state."""
         reading = self._current_reading()
-        thresholds = self._current_thresholds()
+        thresholds = self._resolver.current()
+        self._last_thresholds = thresholds
 
         verdict = self._evaluator.evaluate(
             reading, thresholds, time.monotonic(), trigger
@@ -212,54 +195,6 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
             return float(source_state.state)
         except (ValueError, TypeError):
             return None
-
-    def _current_thresholds(self) -> Thresholds:
-        """Resolve the current Thresholds for the evaluator."""
-        return Thresholds(
-            min=self._get_threshold_value("min"),
-            max=self._get_threshold_value("max"),
-        )
-
-    def _get_threshold_value(self, threshold_type: str) -> float | None:
-        """Get threshold value from entity or fall back to config."""
-        if threshold_type == "min":
-            entity = self._min_threshold_entity
-            config_key = CONF_MIN_TEMP
-        else:
-            entity = self._max_threshold_entity
-            config_key = CONF_MAX_TEMP
-
-        # Try to get from entity first
-        if entity is not None:
-            try:
-                value = entity.native_value
-                if value is not None:
-                    _LOGGER.debug(
-                        "Using %s threshold from entity: %.2f",
-                        threshold_type,
-                        value,
-                    )
-                    return float(value)
-                else:
-                    _LOGGER.debug(
-                        "%s threshold entity exists but value is None, falling back to config",
-                        threshold_type,
-                    )
-            except (ValueError, TypeError, AttributeError) as err:
-                _LOGGER.debug(
-                    "Error getting %s threshold from entity: %s, falling back to config",
-                    threshold_type,
-                    err,
-                )
-
-        # Fall back to config value
-        config_value = self._entry.data.get(config_key)
-        _LOGGER.debug(
-            "Using %s threshold from config: %s",
-            threshold_type,
-            config_value,
-        )
-        return config_value
 
     @callback
     def _cancel_delay_timer(self) -> None:
@@ -302,16 +237,13 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
                 except (ValueError, TypeError):
                     pass
 
-        # Add threshold values based on mode
-        if self._mode in (MODE_MIN_ONLY, MODE_MIN_MAX):
-            min_temp = self._get_threshold_value("min")
-            if min_temp is not None:
-                attrs["min_threshold"] = min_temp
-
-        if self._mode in (MODE_MAX_ONLY, MODE_MIN_MAX):
-            max_temp = self._get_threshold_value("max")
-            if max_temp is not None:
-                attrs["max_threshold"] = max_temp
+        # Add threshold values based on mode (as of the last evaluation)
+        thresholds = self._last_thresholds
+        if thresholds is not None:
+            if self._mode in (MODE_MIN_ONLY, MODE_MIN_MAX) and thresholds.min is not None:
+                attrs["min_threshold"] = thresholds.min
+            if self._mode in (MODE_MAX_ONLY, MODE_MIN_MAX) and thresholds.max is not None:
+                attrs["max_threshold"] = thresholds.max
 
         # Add delay info if enabled
         if self._delay_enabled:

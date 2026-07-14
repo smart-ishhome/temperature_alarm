@@ -1,0 +1,4 @@
+# ponytail: pinned to the last series supporting Python 3.10 (= HA 2023.7);
+# bump to a current version once the dev machine has Python 3.13+
+pytest-homeassistant-custom-component==0.13.45
+tzdata  # zoneinfo database, needed on Windows
