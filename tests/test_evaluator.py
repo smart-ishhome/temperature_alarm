@@ -1,10 +1,10 @@
 """Characterization tests for the Alarm Evaluator.
 
-These pin the behaviour extracted verbatim from the binary sensor
-entity (pre-extraction: binary_sensor.py _update_state and
-_handle_delay_logic). Tests marked QUIRK document behaviour that is
-pinned deliberately; see each comment for whether it is intended or
-slated to change.
+These pin the behaviour extracted from the binary sensor entity
+(pre-extraction: binary_sensor.py _update_state and _handle_delay_logic),
+with one deliberate correction: the Trigger Delay update counter advances
+only on Source Sensor updates (see TestDelayUpdatesCriterion). Tests
+marked QUIRK document behaviour that is pinned as intended.
 """
 from evaluator import (
     MODE_MAX_ONLY,
@@ -12,6 +12,7 @@ from evaluator import (
     MODE_MIN_ONLY,
     AlarmEvaluator,
     Thresholds,
+    Trigger,
 )
 
 
@@ -168,17 +169,46 @@ class TestDelayTimeCriterion:
 
 
 class TestDelayUpdatesCriterion:
-    def test_alarm_on_once_update_count_reached(self):
-        # QUIRK 1 (pinned, fix planned): the counter increments on EVERY
-        # evaluation while the condition holds - threshold changes and
-        # timer re-checks count as "updates", not just Source Sensor
-        # updates.
+    # The counter counts Source Sensor updates observed while the
+    # condition holds (including the one that entered it). Threshold
+    # changes and timer re-checks re-evaluate but do not advance it.
+
+    def test_alarm_on_once_source_update_count_reached(self):
         ev = make_evaluator(delay_enabled=True, delay_time=9999, delay_updates=3)
         assert ev.evaluate(5.0, BOTH, now=0).pending_updates == 1
         assert ev.evaluate(5.0, BOTH, now=1).is_on is False
         v = ev.evaluate(5.0, BOTH, now=2)
         assert v.is_on is True
         assert v.pending_updates == 3
+
+    def test_threshold_changes_do_not_advance_the_counter(self):
+        ev = make_evaluator(delay_enabled=True, delay_time=9999, delay_updates=2)
+        ev.evaluate(5.0, BOTH, now=0)  # source update: count 1
+        v = ev.evaluate(5.0, BOTH, now=1, trigger=Trigger.THRESHOLD_CHANGE)
+        assert v.is_on is False
+        assert v.pending_updates == 1
+        assert ev.evaluate(5.0, BOTH, now=2).is_on is True  # 2nd source update
+
+    def test_rechecks_do_not_advance_the_counter(self):
+        ev = make_evaluator(delay_enabled=True, delay_time=9999, delay_updates=2)
+        ev.evaluate(5.0, BOTH, now=0)
+        v = ev.evaluate(5.0, BOTH, now=1, trigger=Trigger.RECHECK)
+        assert v.is_on is False
+        assert v.pending_updates == 1
+
+    def test_recheck_still_triggers_via_elapsed_time(self):
+        ev = make_evaluator(delay_enabled=True, delay_time=300, delay_updates=99)
+        ev.evaluate(5.0, BOTH, now=0)
+        v = ev.evaluate(5.0, BOTH, now=300, trigger=Trigger.RECHECK)
+        assert v.is_on is True
+
+    def test_pending_can_start_via_threshold_change_with_zero_updates(self):
+        ev = make_evaluator(delay_enabled=True, delay_time=300, delay_updates=1)
+        v = ev.evaluate(5.0, BOTH, now=0, trigger=Trigger.THRESHOLD_CHANGE)
+        assert v.is_on is False
+        assert v.pending is True
+        assert v.pending_updates == 0
+        assert v.recheck_in == 300
 
     def test_single_update_threshold_triggers_immediately(self):
         ev = make_evaluator(delay_enabled=True, delay_time=9999, delay_updates=1)

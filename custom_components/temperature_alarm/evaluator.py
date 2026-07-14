@@ -9,12 +9,26 @@ Thresholds, feeds them in, and applies the resulting Verdict.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 
 # Monitoring modes. These are the values stored in config entries; the
 # rest of the integration imports them via const.py.
 MODE_MIN_ONLY = "min_only"
 MODE_MAX_ONLY = "max_only"
 MODE_MIN_MAX = "min_max"
+
+
+class Trigger(Enum):
+    """What caused an evaluation.
+
+    Only SOURCE_UPDATE advances the Trigger Delay update counter -
+    threshold tweaks and scheduled re-checks must not trip the alarm
+    early on the update-count criterion.
+    """
+
+    SOURCE_UPDATE = "source_update"
+    THRESHOLD_CHANGE = "threshold_change"
+    RECHECK = "recheck"
 
 
 @dataclass(frozen=True)
@@ -70,12 +84,18 @@ class AlarmEvaluator:
         self._update_count = 0
 
     def evaluate(
-        self, reading: float | None, thresholds: Thresholds, now: float
+        self,
+        reading: float | None,
+        thresholds: Thresholds,
+        now: float,
+        trigger: Trigger = Trigger.SOURCE_UPDATE,
     ) -> Verdict:
         """Evaluate the alarm given the current reading and Thresholds.
 
         ``reading`` is None when the Source Sensor is unavailable or not
-        numeric; that resets any pending delay.
+        numeric; that resets any pending delay. ``trigger`` says what
+        caused this evaluation; only Source Sensor updates count toward
+        the Trigger Delay's update criterion.
         """
         if reading is None:
             self._reset()
@@ -84,7 +104,7 @@ class AlarmEvaluator:
         condition = self._condition_met(reading, thresholds)
 
         if self._delay_enabled and condition:
-            return self._apply_delay(now)
+            return self._apply_delay(now, trigger)
 
         self._reset()
         return self._verdict(is_on=condition)
@@ -101,13 +121,14 @@ class AlarmEvaluator:
             return thresholds.max is not None and reading > thresholds.max
         return False
 
-    def _apply_delay(self, now: float) -> Verdict:
+    def _apply_delay(self, now: float, trigger: Trigger) -> Verdict:
         """Run the Trigger Delay state machine for a met condition.
 
         The alarm turns on once EITHER the elapsed time reaches
-        delay_time OR the number of evaluations reaches delay_updates.
-        Tracking is not reset when the alarm triggers; it clears when
-        the condition stops being met or the reading goes unavailable.
+        delay_time OR the number of Source Sensor updates while the
+        condition holds reaches delay_updates. Tracking is not reset
+        when the alarm triggers; it clears when the condition stops
+        being met or the reading goes unavailable.
         """
         recheck_in: float | None = None
         if self._pending_since is None:
@@ -115,7 +136,8 @@ class AlarmEvaluator:
             self._update_count = 0
             recheck_in = self._delay_time
 
-        self._update_count += 1
+        if trigger is Trigger.SOURCE_UPDATE:
+            self._update_count += 1
 
         elapsed = now - self._pending_since
         time_met = elapsed >= self._delay_time

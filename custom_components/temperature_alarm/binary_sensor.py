@@ -37,7 +37,7 @@ from .const import (
     MODE_MIN_MAX,
     MODE_MIN_ONLY,
 )
-from .evaluator import AlarmEvaluator, Thresholds, Verdict
+from .evaluator import AlarmEvaluator, Thresholds, Trigger, Verdict
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -154,28 +154,30 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
         # Make sure a pending re-check timer never fires after removal
         self.async_on_remove(self._cancel_delay_timer)
 
-        # Initial state evaluation
-        self._refresh()
+        # Initial state evaluation - reads the source for the first time
+        self._refresh(Trigger.SOURCE_UPDATE)
 
     @callback
     def _async_threshold_changed(self) -> None:
         """Handle threshold value changes."""
         _LOGGER.debug("Threshold changed, re-evaluating alarm state")
-        self._refresh()
+        self._refresh(Trigger.THRESHOLD_CHANGE)
 
     @callback
     def _async_source_state_changed(self, event: Event) -> None:
         """Handle state changes of source temperature entity."""
         _LOGGER.debug("Source entity state changed: %s", event.data.get("new_state"))
-        self._refresh()
+        self._refresh(Trigger.SOURCE_UPDATE)
 
     @callback
-    def _refresh(self) -> None:
+    def _refresh(self, trigger: Trigger) -> None:
         """Evaluate the alarm and apply the Verdict to HA state."""
         reading = self._current_reading()
         thresholds = self._current_thresholds()
 
-        verdict = self._evaluator.evaluate(reading, thresholds, time.monotonic())
+        verdict = self._evaluator.evaluate(
+            reading, thresholds, time.monotonic(), trigger
+        )
         self._last_verdict = verdict
 
         _LOGGER.debug(
@@ -274,7 +276,7 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
         def _delay_timer_callback(_now: Any) -> None:
             """Handle delay timer expiration."""
             self._delay_timer_cancel = None
-            self._refresh()
+            self._refresh(Trigger.RECHECK)
 
         self._delay_timer_cancel = async_call_later(
             self.hass, delay, _delay_timer_callback
