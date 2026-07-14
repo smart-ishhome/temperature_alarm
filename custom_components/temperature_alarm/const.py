@@ -8,10 +8,8 @@ CONF_MODE = "mode"
 CONF_MIN_TEMP = "min_temp"
 CONF_MAX_TEMP = "max_temp"
 
-# Monitoring modes
-MODE_MIN_ONLY = "min_only"
-MODE_MAX_ONLY = "max_only"
-MODE_MIN_MAX = "min_max"
+# Monitoring modes - defined in evaluator.py (the domain core), re-exported here
+from .evaluator import MODE_MAX_ONLY, MODE_MIN_MAX, MODE_MIN_ONLY  # noqa: F401
 
 MODES = [MODE_MIN_ONLY, MODE_MAX_ONLY, MODE_MIN_MAX]
 
