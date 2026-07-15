@@ -57,6 +57,22 @@ def threshold_unique_id(source_entity_id: str, kind: str) -> str:
     return f"{DOMAIN}_{source_entity_id}_{kind}_temperature"
 
 
+@callback
+def async_remove_orphaned_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove registered Threshold Entities the entry no longer wants."""
+    registry = er.async_get(hass)
+    source_entity_id = entry.data[CONF_SOURCE_ENTITY]
+    for kind in KINDS:
+        if wants_entity(entry.data, kind):
+            continue
+        entity_id = registry.async_get_entity_id(
+            "number", DOMAIN, threshold_unique_id(source_entity_id, kind)
+        )
+        if entity_id:
+            _LOGGER.debug("Removing %s threshold entity: %s", kind, entity_id)
+            registry.async_remove(entity_id)
+
+
 class ThresholdResolver:
     """Resolves the current Thresholds and notifies on changes.
 
