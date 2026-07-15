@@ -42,16 +42,17 @@ from .const import (
 Settings = Mapping[str, Any]
 
 
-def _temperature_selector(unit: str) -> selector.NumberSelector:
-    return selector.NumberSelector(
-        selector.NumberSelectorConfig(
-            min=MIN_TEMP_LIMIT,
-            max=MAX_TEMP_LIMIT,
-            step=TEMP_STEP,
-            unit_of_measurement=unit,
-            mode=selector.NumberSelectorMode.BOX,
-        )
-    )
+def _temperature_selector(unit: str | None) -> selector.NumberSelector:
+    # A Source Sensor may report no unit; then the field renders unitless
+    config: dict[str, Any] = {
+        "min": MIN_TEMP_LIMIT,
+        "max": MAX_TEMP_LIMIT,
+        "step": TEMP_STEP,
+        "mode": selector.NumberSelectorMode.BOX,
+    }
+    if unit is not None:
+        config["unit_of_measurement"] = unit
+    return selector.NumberSelector(selector.NumberSelectorConfig(**config))
 
 
 def mode_schema(defaults: Settings) -> vol.Schema:
@@ -83,7 +84,7 @@ def mode_schema(defaults: Settings) -> vol.Schema:
     )
 
 
-def thresholds_schema(mode: str, defaults: Settings, unit: str) -> vol.Schema:
+def thresholds_schema(mode: str, defaults: Settings, unit: str | None) -> vol.Schema:
     """Schema for the Thresholds a Monitoring Mode requires."""
     schema_dict: dict[Any, Any] = {}
 

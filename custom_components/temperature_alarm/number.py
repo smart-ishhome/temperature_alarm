@@ -11,7 +11,6 @@ from homeassistant.components.number import (
     RestoreNumber,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -31,12 +30,12 @@ from .thresholds import threshold_unique_id, wants_entity
 _LOGGER = logging.getLogger(__name__)
 
 
-def _get_entity_unit(hass: HomeAssistant, entity_id: str) -> str:
-    """Get the unit of measurement for an entity."""
+def _get_entity_unit(hass: HomeAssistant, entity_id: str) -> str | None:
+    """Get the unit of measurement for an entity, or None if it has none."""
     state = hass.states.get(entity_id)
     if state and state.attributes.get("unit_of_measurement"):
         return state.attributes.get("unit_of_measurement")
-    return UnitOfTemperature.CELSIUS
+    return None
 
 
 async def async_setup_entry(
@@ -90,7 +89,7 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
         device_info: dict[str, Any] | None,
         threshold_type: str,
         initial_value: float,
-        unit: str,
+        unit: str | None,
     ) -> None:
         """Initialize the number entity."""
         self._entry = entry
