@@ -147,18 +147,22 @@ class TestDelayTimeCriterion:
         assert ev.evaluate(5.0, BOTH, now=1299).is_on is False
         assert ev.evaluate(5.0, BOTH, now=1300).is_on is True
 
-    def test_pending_persists_after_alarm_triggers(self):
-        # Pinned: triggering does NOT clear delay tracking - the alarm
-        # keeps reporting alarm_pending until the condition clears.
+    def test_pending_clears_when_alarm_triggers(self):
+        # Triggering does NOT clear internal delay tracking, but Alarm
+        # Pending ends when the alarm turns on - the Verdict reports
+        # pending only while the Trigger Delay is still running.
         ev = make_evaluator(delay_enabled=True, delay_time=300, delay_updates=99)
         ev.evaluate(5.0, BOTH, now=1000)
         v = ev.evaluate(5.0, BOTH, now=1300)
         assert v.is_on is True
-        assert v.pending is True
+        assert v.pending is False
+        assert v.pending_updates == 0
 
     def test_zero_delay_time_triggers_immediately(self):
         ev = make_evaluator(delay_enabled=True, delay_time=0, delay_updates=99)
-        assert ev.evaluate(5.0, BOTH, now=1000).is_on is True
+        v = ev.evaluate(5.0, BOTH, now=1000)
+        assert v.is_on is True
+        assert v.recheck_in is None  # an on Verdict never asks for a re-check
 
     def test_pending_restart_requests_recheck_again(self):
         ev = make_evaluator(delay_enabled=True, delay_time=300, delay_updates=99)
@@ -176,10 +180,12 @@ class TestDelayUpdatesCriterion:
     def test_alarm_on_once_source_update_count_reached(self):
         ev = make_evaluator(delay_enabled=True, delay_time=9999, delay_updates=3)
         assert ev.evaluate(5.0, BOTH, now=0).pending_updates == 1
-        assert ev.evaluate(5.0, BOTH, now=1).is_on is False
+        v2 = ev.evaluate(5.0, BOTH, now=1)
+        assert v2.is_on is False
+        assert v2.pending_updates == 2
         v = ev.evaluate(5.0, BOTH, now=2)
         assert v.is_on is True
-        assert v.pending_updates == 3
+        assert v.pending_updates == 0  # pending info ends when the alarm fires
 
     def test_threshold_changes_do_not_advance_the_counter(self):
         ev = make_evaluator(delay_enabled=True, delay_time=9999, delay_updates=2)
@@ -212,7 +218,9 @@ class TestDelayUpdatesCriterion:
 
     def test_single_update_threshold_triggers_immediately(self):
         ev = make_evaluator(delay_enabled=True, delay_time=9999, delay_updates=1)
-        assert ev.evaluate(5.0, BOTH, now=0).is_on is True
+        v = ev.evaluate(5.0, BOTH, now=0)
+        assert v.is_on is True
+        assert v.recheck_in is None  # an on Verdict never asks for a re-check
 
 
 class TestDelayRecovery:
