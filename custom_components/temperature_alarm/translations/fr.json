@@ -16,10 +16,12 @@
         "title": "Sélectionner le Mode de Surveillance",
         "description": "Choisissez comment surveiller la température.",
         "data": {
-          "mode": "Mode de Surveillance"
+          "mode": "Mode de Surveillance",
+          "device_class": "Classe d'Appareil de l'Alarme"
         },
         "data_description": {
-          "mode": "Min Seulement : Alerte en dessous du minimum. Max Seulement : Alerte au-dessus du maximum. Min/Max : Alerte hors plage."
+          "mode": "Min Seulement : Alerte en dessous du minimum. Max Seulement : Alerte au-dessus du maximum. Min/Max : Alerte hors plage.",
+          "device_class": "Comment Home Assistant annonce l'alarme : Safety (Non sécurisé), Problem (Problème), Heat (Chaud), Cold (Froid)."
         }
       },
       "thresholds": {
@@ -66,10 +68,12 @@
         "title": "Options d'Alarme de Température",
         "description": "Choisissez comment surveiller la température.",
         "data": {
-          "mode": "Mode de Surveillance"
+          "mode": "Mode de Surveillance",
+          "device_class": "Classe d'Appareil de l'Alarme"
         },
         "data_description": {
-          "mode": "Min Seulement : Alerte en dessous du minimum. Max Seulement : Alerte au-dessus du maximum. Min/Max : Alerte hors plage."
+          "mode": "Min Seulement : Alerte en dessous du minimum. Max Seulement : Alerte au-dessus du maximum. Min/Max : Alerte hors plage.",
+          "device_class": "Comment Home Assistant annonce l'alarme : Safety (Non sécurisé), Problem (Problème), Heat (Chaud), Cold (Froid)."
         }
       },
       "thresholds": {

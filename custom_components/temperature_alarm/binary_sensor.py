@@ -26,9 +26,11 @@ from .const import (
     CONF_DELAY_ENABLED,
     CONF_DELAY_TIME,
     CONF_DELAY_UPDATES,
+    CONF_DEVICE_CLASS,
     CONF_MODE,
     DEFAULT_DELAY_TIME,
     DEFAULT_DELAY_UPDATES,
+    DEFAULT_DEVICE_CLASS,
     DOMAIN,
     MODE_MAX_ONLY,
     MODE_MIN_MAX,
@@ -66,7 +68,6 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
     """Binary sensor for temperature alarm state."""
 
     _attr_has_entity_name = True
-    _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_translation_key = "temperature_alarm"
     _attr_icon = "mdi:thermometer-alert"
     _attr_should_poll = False
@@ -84,6 +85,9 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
         self._source_entity_id = source_entity_id
         self._mode = mode
         self._attr_is_on = None
+        self._attr_device_class = BinarySensorDeviceClass(
+            entry.data.get(CONF_DEVICE_CLASS, DEFAULT_DEVICE_CLASS)
+        )
 
         # Threshold Resolution owns where Thresholds come from
         self._resolver = resolver

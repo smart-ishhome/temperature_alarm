@@ -11,6 +11,7 @@ from custom_components.temperature_alarm.const import (
     CONF_CREATE_MIN_ENTITY,
     CONF_DELAY_ENABLED,
     CONF_DELAY_TIME,
+    CONF_DEVICE_CLASS,
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
     CONF_MODE,
@@ -110,6 +111,28 @@ def test_entry_data_prefills_defaults():
     assert default_of(schema, CONF_MAX_TEMP) == 42.0
     assert default_of(schema, CONF_CREATE_MAX_ENTITY) is False
     assert default_of(delay_schema(data), CONF_DELAY_ENABLED) is True
+
+
+# Alarm Device Class: chosen on the mode step, all four classes always offered
+
+
+def test_mode_step_has_mode_and_device_class():
+    assert keys(mode_schema({})) == {CONF_MODE, CONF_DEVICE_CLASS}
+
+
+def test_device_class_offers_all_four_classes():
+    config = selector_config(mode_schema({}), CONF_DEVICE_CLASS)
+    values = [option["value"] for option in config["options"]]
+    assert values == ["safety", "problem", "heat", "cold"]
+
+
+def test_device_class_defaults_to_problem():
+    assert default_of(mode_schema({}), CONF_DEVICE_CLASS) == "problem"
+
+
+def test_entry_data_prefills_device_class():
+    schema = mode_schema({CONF_DEVICE_CLASS: "cold"})
+    assert default_of(schema, CONF_DEVICE_CLASS) == "cold"
 
 
 # validation
