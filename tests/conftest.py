@@ -1,7 +1,8 @@
 """Test setup.
 
-evaluator.py is deliberately stdlib-only; its tests import it as a
-top-level module so they run without homeassistant installed.
+evaluator.py and reading.py are deliberately stdlib-only; their tests
+import them as top-level modules so they run without homeassistant
+installed.
 The Threshold Resolution tests import the real package (repo root on
 sys.path) and need the pytest-homeassistant-custom-component harness.
 """

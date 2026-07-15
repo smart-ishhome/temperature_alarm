@@ -11,7 +11,6 @@ import logging
 from typing import Any, Callable, Mapping
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
@@ -29,6 +28,7 @@ from .const import (
     MODE_MIN_ONLY,
 )
 from .evaluator import Thresholds
+from .reading import reading_of
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class ThresholdResolver:
     """Resolves the current Thresholds and notifies on changes.
 
     Values come from the Threshold Entity's state when one exists and
-    holds a numeric value, otherwise from the config entry.
+    yields a Reading, otherwise from the config entry.
     """
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -102,16 +102,13 @@ class ThresholdResolver:
         entity_id = self._entity_id(kind)
         if entity_id is not None:
             state = self._hass.states.get(entity_id)
-            if state is not None and state.state not in (
-                STATE_UNAVAILABLE,
-                STATE_UNKNOWN,
-            ):
-                try:
-                    return float(state.state)
-                except (ValueError, TypeError):
-                    _LOGGER.debug(
-                        "Non-numeric %s Threshold Entity state %r, using config",
-                        kind,
-                        state.state,
-                    )
+            reading = reading_of(state)
+            if reading is not None:
+                return reading
+            if state is not None:
+                _LOGGER.debug(
+                    "No Reading from %s Threshold Entity (state: %r), using config",
+                    kind,
+                    state.state,
+                )
         return self._entry.data.get(_CONFIG_KEY[kind])

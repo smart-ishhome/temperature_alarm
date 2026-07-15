@@ -16,7 +16,6 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Event, HomeAssistant, callback, CALLBACK_TYPE
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -37,6 +36,7 @@ from .const import (
     MODE_MIN_ONLY,
 )
 from .evaluator import AlarmEvaluator, Thresholds, Trigger, Verdict
+from .reading import reading_of
 from .thresholds import ThresholdResolver
 
 _LOGGER = logging.getLogger(__name__)
@@ -189,16 +189,7 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
 
     def _current_reading(self) -> float | None:
         """Read the source temperature, or None if unavailable/non-numeric."""
-        source_state = self.hass.states.get(self._source_entity_id)
-        if source_state is None or source_state.state in (
-            STATE_UNAVAILABLE,
-            STATE_UNKNOWN,
-        ):
-            return None
-        try:
-            return float(source_state.state)
-        except (ValueError, TypeError):
-            return None
+        return reading_of(self.hass.states.get(self._source_entity_id))
 
     @callback
     def _cancel_delay_timer(self) -> None:
@@ -231,15 +222,9 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
 
         # Add current temperature
         if self.hass:
-            source_state = self.hass.states.get(self._source_entity_id)
-            if source_state and source_state.state not in (
-                STATE_UNAVAILABLE,
-                STATE_UNKNOWN,
-            ):
-                try:
-                    attrs["current_temperature"] = float(source_state.state)
-                except (ValueError, TypeError):
-                    pass
+            reading = reading_of(self.hass.states.get(self._source_entity_id))
+            if reading is not None:
+                attrs["current_temperature"] = reading
 
         # Add threshold values based on mode (as of the last evaluation)
         thresholds = self._last_thresholds

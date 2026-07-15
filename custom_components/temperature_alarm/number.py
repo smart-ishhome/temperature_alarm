@@ -25,17 +25,10 @@ from .const import (
     MIN_TEMP_LIMIT,
     TEMP_STEP,
 )
+from .reading import unit_of
 from .thresholds import threshold_unique_id, wants_entity
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _get_entity_unit(hass: HomeAssistant, entity_id: str) -> str | None:
-    """Get the unit of measurement for an entity, or None if it has none."""
-    state = hass.states.get(entity_id)
-    if state and state.attributes.get("unit_of_measurement"):
-        return state.attributes.get("unit_of_measurement")
-    return None
 
 
 async def async_setup_entry(
@@ -52,7 +45,7 @@ async def async_setup_entry(
         "min": entry.data.get(CONF_MIN_TEMP, DEFAULT_MIN_TEMP),
         "max": entry.data.get(CONF_MAX_TEMP, DEFAULT_MAX_TEMP),
     }
-    unit = _get_entity_unit(hass, source_entity_id)
+    unit = unit_of(hass.states.get(source_entity_id))
 
     entities = [
         TemperatureThresholdNumber(

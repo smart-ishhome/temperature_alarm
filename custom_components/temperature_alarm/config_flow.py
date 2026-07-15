@@ -14,23 +14,16 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 
 from .const import CONF_MODE, CONF_SHOW_ALL_SENSORS, CONF_SOURCE_ENTITY, DOMAIN
+from .reading import reading_of, unit_of
 from .settings import delay_schema, mode_schema, thresholds_schema, validate
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _get_entity_unit(hass: HomeAssistant, entity_id: str) -> str | None:
-    """Get the unit of measurement for an entity, or None if it has none."""
-    state = hass.states.get(entity_id)
-    if state and state.attributes.get("unit_of_measurement"):
-        return state.attributes.get("unit_of_measurement")
-    return None
 
 
 class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -68,15 +61,12 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 state = self.hass.states.get(entity_id)
                 if state is None:
                     errors["base"] = "invalid_entity"
-                else:
-                    try:
-                        float(state.state)
-                    except ValueError:
-                        errors["base"] = "state_not_numeric"
+                elif reading_of(state) is None:
+                    errors["base"] = "state_not_numeric"
 
                 if not errors:
                     self._data[CONF_SOURCE_ENTITY] = entity_id
-                    self._unit = _get_entity_unit(self.hass, entity_id)
+                    self._unit = unit_of(state)
                     return await self.async_step_mode()
             # No entity picked: the user flipped the toggle - just re-show
 
@@ -208,7 +198,7 @@ class TemperatureAlarmOptionsFlow(config_entries.OptionsFlow):
                 self._data.update(user_input)
                 return await self.async_step_delay()
 
-        unit = _get_entity_unit(self.hass, self._data[CONF_SOURCE_ENTITY])
+        unit = unit_of(self.hass.states.get(self._data[CONF_SOURCE_ENTITY]))
         return self.async_show_form(
             step_id="thresholds",
             data_schema=thresholds_schema(self._data[CONF_MODE], self._data, unit),
