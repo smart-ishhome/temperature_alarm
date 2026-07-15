@@ -180,7 +180,7 @@ async def test_options_flow_updates_device_class(hass):
     entry.add_to_hass(hass)
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    assert result["step_id"] == "init"
+    assert result["step_id"] == "mode"
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {CONF_DEVICE_CLASS: "safety"}
     )
@@ -191,3 +191,32 @@ async def test_options_flow_updates_device_class(hass):
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert entry.data[CONF_DEVICE_CLASS] == "safety"
+
+
+# thresholds validation: error re-shows the form, corrected input proceeds
+
+
+async def test_min_above_max_reshows_then_corrected_proceeds(hass):
+    hass.states.async_set("sensor.attic_diy", "21.5")
+
+    result = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {CONF_SOURCE_ENTITY: "sensor.attic_diy", CONF_SHOW_ALL_SENSORS: True},
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_MODE: MODE_MIN_MAX}
+    )
+    assert result["step_id"] == "thresholds"
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_MIN_TEMP: 30.0, CONF_MAX_TEMP: 5.0}
+    )
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "thresholds"
+    assert result["errors"] == {"base": "min_greater_than_max"}
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_MIN_TEMP: 5.0, CONF_MAX_TEMP: 30.0}
+    )
+    assert result["step_id"] == "delay"

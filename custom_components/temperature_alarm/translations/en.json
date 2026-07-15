@@ -64,7 +64,7 @@
   },
   "options": {
     "step": {
-      "init": {
+      "mode": {
         "title": "Temperature Alarm Options",
         "description": "Choose how to monitor the temperature.",
         "data": {

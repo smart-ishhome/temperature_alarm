@@ -64,7 +64,7 @@
   },
   "options": {
     "step": {
-      "init": {
+      "mode": {
         "title": "Temperatur-Alarm Optionen",
         "description": "Wählen Sie, wie die Temperatur überwacht werden soll.",
         "data": {

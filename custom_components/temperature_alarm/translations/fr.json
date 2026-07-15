@@ -64,7 +64,7 @@
   },
   "options": {
     "step": {
-      "init": {
+      "mode": {
         "title": "Options d'Alarme de Température",
         "description": "Choisissez comment surveiller la température.",
         "data": {
