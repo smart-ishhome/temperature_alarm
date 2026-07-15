@@ -3,9 +3,13 @@
     "step": {
       "user": {
         "title": "Temperature Alarm Setup",
-        "description": "Select a temperature sensor to monitor for alarm conditions.",
+        "description": "Select a temperature sensor to monitor for alarm conditions. If your sensor has no device class, enable the option below to show all sensors.",
         "data": {
-          "source_entity": "Temperature Sensor"
+          "source_entity": "Temperature Sensor",
+          "show_all_sensors": "My sensor isn't listed (show all sensors)"
+        },
+        "data_description": {
+          "show_all_sensors": "When enabled, the picker lists every sensor, including sensors without a device class. The chosen sensor must currently report a numeric value."
         }
       },
       "mode": {
@@ -49,6 +53,7 @@
     },
     "error": {
       "invalid_entity": "Selected entity is not a valid temperature sensor.",
+      "state_not_numeric": "Selected sensor does not currently report a numeric value.",
       "min_greater_than_max": "Minimum temperature must be less than maximum temperature."
     },
     "abort": {

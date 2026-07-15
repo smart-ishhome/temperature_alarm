@@ -14,24 +14,23 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 
-from .const import CONF_MODE, CONF_SOURCE_ENTITY, DOMAIN
+from .const import CONF_MODE, CONF_SHOW_ALL_SENSORS, CONF_SOURCE_ENTITY, DOMAIN
 from .settings import delay_schema, mode_schema, thresholds_schema, validate
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _get_entity_unit(hass: HomeAssistant, entity_id: str) -> str:
-    """Get the unit of measurement for an entity."""
+def _get_entity_unit(hass: HomeAssistant, entity_id: str) -> str | None:
+    """Get the unit of measurement for an entity, or None if it has none."""
     state = hass.states.get(entity_id)
     if state and state.attributes.get("unit_of_measurement"):
         return state.attributes.get("unit_of_measurement")
-    return UnitOfTemperature.CELSIUS
+    return None
 
 
 class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -42,40 +41,63 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialize the config flow."""
         self._data: dict[str, Any] = {}
-        self._unit: str = UnitOfTemperature.CELSIUS
+        self._unit: str | None = None
+        self._show_all: bool = False
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step - select source entity."""
+        """Handle the initial step - select source entity.
+
+        The picker is filtered to temperature-class sensors by default;
+        the "show all sensors" toggle re-shows it unfiltered so sensors
+        without a device_class can be chosen. Whatever the path, the
+        selection must have a live numeric Reading right now.
+        """
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            entity_id = user_input[CONF_SOURCE_ENTITY]
+            self._show_all = user_input.get(CONF_SHOW_ALL_SENSORS, False)
+            entity_id = user_input.get(CONF_SOURCE_ENTITY)
 
-            # Check if already configured
-            await self.async_set_unique_id(f"{DOMAIN}_{entity_id}")
-            self._abort_if_unique_id_configured()
+            if entity_id:
+                # Check if already configured
+                await self.async_set_unique_id(f"{DOMAIN}_{entity_id}")
+                self._abort_if_unique_id_configured()
 
-            # Validate the entity
-            state = self.hass.states.get(entity_id)
-            if state is None:
-                errors["base"] = "invalid_entity"
-            else:
-                # Store selected entity and get its unit
-                self._data[CONF_SOURCE_ENTITY] = entity_id
-                self._unit = _get_entity_unit(self.hass, entity_id)
-                return await self.async_step_mode()
+                state = self.hass.states.get(entity_id)
+                if state is None:
+                    errors["base"] = "invalid_entity"
+                else:
+                    try:
+                        float(state.state)
+                    except ValueError:
+                        errors["base"] = "state_not_numeric"
 
-        # Show entity selector
+                if not errors:
+                    self._data[CONF_SOURCE_ENTITY] = entity_id
+                    self._unit = _get_entity_unit(self.hass, entity_id)
+                    return await self.async_step_mode()
+            # No entity picked: the user flipped the toggle - just re-show
+
+        if self._show_all:
+            entity_selector = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            )
+        else:
+            entity_selector = selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="sensor",
+                    device_class=SensorDeviceClass.TEMPERATURE,
+                )
+            )
+
         schema = vol.Schema(
             {
-                vol.Required(CONF_SOURCE_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(
-                        domain="sensor",
-                        device_class=SensorDeviceClass.TEMPERATURE,
-                    )
-                ),
+                vol.Optional(CONF_SOURCE_ENTITY): entity_selector,
+                vol.Required(
+                    CONF_SHOW_ALL_SENSORS, default=self._show_all
+                ): selector.BooleanSelector(),
             }
         )
 
