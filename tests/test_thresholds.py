@@ -21,6 +21,7 @@ from custom_components.temperature_alarm.const import (
 )
 from custom_components.temperature_alarm.thresholds import (
     ThresholdResolver,
+    async_remove_orphaned_entities,
     threshold_unique_id,
     wants_entity,
 )
@@ -156,3 +157,17 @@ async def test_subscribe_without_entities_is_noop(hass):
     resolver = ThresholdResolver(hass, entry)
     unsub = resolver.async_subscribe(lambda: None)
     unsub()  # must not raise
+
+
+# async_remove_orphaned_entities — prune on reconfigure
+
+
+async def test_remove_orphaned_entities_prunes_unwanted_kind(hass):
+    min_id = register_threshold_entity(hass, "min")
+    max_id = register_threshold_entity(hass, "max")
+
+    async_remove_orphaned_entities(hass, make_entry(**{CONF_MODE: MODE_MAX_ONLY}))
+
+    registry = er.async_get(hass)
+    assert registry.async_get(min_id) is None
+    assert registry.async_get(max_id) is not None

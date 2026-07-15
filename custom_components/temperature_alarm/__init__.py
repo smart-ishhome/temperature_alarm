@@ -10,7 +10,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from .const import CONF_SOURCE_ENTITY, DOMAIN, PLATFORMS
-from .thresholds import KINDS, threshold_unique_id, wants_entity
+from .thresholds import async_remove_orphaned_entities
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,21 +61,14 @@ async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
     _LOGGER.debug("Options updated, reloading integration for entry %s", entry.entry_id)
     _LOGGER.debug("New data: %s", entry.data)
     
-    # Remove Threshold Entities that should no longer exist
-    entity_registry = er.async_get(hass)
-    source_entity_id = entry.data.get(CONF_SOURCE_ENTITY)
-    for kind in KINDS:
-        if wants_entity(entry.data, kind):
-            continue
-        entity_id = entity_registry.async_get_entity_id(
-            "number", DOMAIN, threshold_unique_id(source_entity_id, kind)
-        )
-        if entity_id:
-            _LOGGER.debug("Removing %s threshold entity: %s", kind, entity_id)
-            entity_registry.async_remove(entity_id)
-
     # Reload the config entry to apply new options
     await hass.config_entries.async_reload(entry.entry_id)
+
+    # Remove Threshold Entities that should no longer exist. This must
+    # happen after the reload: removing a registry entry also removes its
+    # live entity, and the reload's unload would then remove it a second
+    # time, failing the whole unload.
+    async_remove_orphaned_entities(hass, entry)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
