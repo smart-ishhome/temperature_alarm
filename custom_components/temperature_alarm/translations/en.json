@@ -16,10 +16,12 @@
         "title": "Select Monitoring Mode",
         "description": "Choose how to monitor the temperature.",
         "data": {
-          "mode": "Monitoring Mode"
+          "mode": "Monitoring Mode",
+          "device_class": "Alarm Device Class"
         },
         "data_description": {
-          "mode": "Min Only: Alert when below minimum. Max Only: Alert when above maximum. Min/Max: Alert when outside range."
+          "mode": "Min Only: Alert when below minimum. Max Only: Alert when above maximum. Min/Max: Alert when outside range.",
+          "device_class": "How Home Assistant announces the alarm: Safety (Unsafe), Problem (Problem), Heat (Hot), Cold (Cold)."
         }
       },
       "thresholds": {
@@ -66,10 +68,12 @@
         "title": "Temperature Alarm Options",
         "description": "Choose how to monitor the temperature.",
         "data": {
-          "mode": "Monitoring Mode"
+          "mode": "Monitoring Mode",
+          "device_class": "Alarm Device Class"
         },
         "data_description": {
-          "mode": "Min Only: Alert when below minimum. Max Only: Alert when above maximum. Min/Max: Alert when outside range."
+          "mode": "Min Only: Alert when below minimum. Max Only: Alert when above maximum. Min/Max: Alert when outside range.",
+          "device_class": "How Home Assistant announces the alarm: Safety (Unsafe), Problem (Problem), Heat (Hot), Cold (Cold)."
         }
       },
       "thresholds": {

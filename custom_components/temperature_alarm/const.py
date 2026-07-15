@@ -17,10 +17,16 @@ from .evaluator import MODE_MAX_ONLY, MODE_MIN_MAX, MODE_MIN_ONLY  # noqa: F401
 
 MODES = [MODE_MIN_ONLY, MODE_MAX_ONLY, MODE_MIN_MAX]
 
+# Alarm Device Class - how HA announces the Alarm's on-state; values are
+# BinarySensorDeviceClass enum values, kept as plain strings so const.py
+# stays free of HA component imports
+CONF_DEVICE_CLASS = "device_class"
+
 # Default values
 DEFAULT_MIN_TEMP = 50.0
 DEFAULT_MAX_TEMP = 90.0
 DEFAULT_MODE = MODE_MIN_MAX
+DEFAULT_DEVICE_CLASS = "problem"
 
 # Number entity constraints
 MIN_TEMP_LIMIT = -50.0

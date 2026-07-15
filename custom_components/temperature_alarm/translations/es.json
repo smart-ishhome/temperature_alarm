@@ -16,10 +16,12 @@
         "title": "Seleccionar Modo de Monitoreo",
         "description": "Elija cómo monitorear la temperatura.",
         "data": {
-          "mode": "Modo de Monitoreo"
+          "mode": "Modo de Monitoreo",
+          "device_class": "Clase de Dispositivo de la Alarma"
         },
         "data_description": {
-          "mode": "Solo Mín: Alerta por debajo del mínimo. Solo Máx: Alerta por encima del máximo. Mín/Máx: Alerta fuera del rango."
+          "mode": "Solo Mín: Alerta por debajo del mínimo. Solo Máx: Alerta por encima del máximo. Mín/Máx: Alerta fuera del rango.",
+          "device_class": "Cómo anuncia Home Assistant la alarma: Safety (Inseguro), Problem (Problema), Heat (Calor), Cold (Frío)."
         }
       },
       "thresholds": {
@@ -66,10 +68,12 @@
         "title": "Opciones de Alarma de Temperatura",
         "description": "Elija cómo monitorear la temperatura.",
         "data": {
-          "mode": "Modo de Monitoreo"
+          "mode": "Modo de Monitoreo",
+          "device_class": "Clase de Dispositivo de la Alarma"
         },
         "data_description": {
-          "mode": "Solo Mín: Alerta por debajo del mínimo. Solo Máx: Alerta por encima del máximo. Mín/Máx: Alerta fuera del rango."
+          "mode": "Solo Mín: Alerta por debajo del mínimo. Solo Máx: Alerta por encima del máximo. Mín/Máx: Alerta fuera del rango.",
+          "device_class": "Cómo anuncia Home Assistant la alarma: Safety (Inseguro), Problem (Problema), Heat (Calor), Cold (Frío)."
         }
       },
       "thresholds": {

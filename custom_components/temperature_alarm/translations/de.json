@@ -16,10 +16,12 @@
         "title": "Überwachungsmodus auswählen",
         "description": "Wählen Sie, wie die Temperatur überwacht werden soll.",
         "data": {
-          "mode": "Überwachungsmodus"
+          "mode": "Überwachungsmodus",
+          "device_class": "Alarm-Geräteklasse"
         },
         "data_description": {
-          "mode": "Nur Min: Warnung bei Unterschreitung des Minimums. Nur Max: Warnung bei Überschreitung des Maximums. Min/Max: Warnung außerhalb des Bereichs."
+          "mode": "Nur Min: Warnung bei Unterschreitung des Minimums. Nur Max: Warnung bei Überschreitung des Maximums. Min/Max: Warnung außerhalb des Bereichs.",
+          "device_class": "Wie Home Assistant den Alarm meldet: Safety (unsicher), Problem (Problem), Heat (heiß), Cold (kalt)."
         }
       },
       "thresholds": {
@@ -66,10 +68,12 @@
         "title": "Temperatur-Alarm Optionen",
         "description": "Wählen Sie, wie die Temperatur überwacht werden soll.",
         "data": {
-          "mode": "Überwachungsmodus"
+          "mode": "Überwachungsmodus",
+          "device_class": "Alarm-Geräteklasse"
         },
         "data_description": {
-          "mode": "Nur Min: Warnung bei Unterschreitung des Minimums. Nur Max: Warnung bei Überschreitung des Maximums. Min/Max: Warnung außerhalb des Bereichs."
+          "mode": "Nur Min: Warnung bei Unterschreitung des Minimums. Nur Max: Warnung bei Überschreitung des Maximums. Min/Max: Warnung außerhalb des Bereichs.",
+          "device_class": "Wie Home Assistant den Alarm meldet: Safety (unsicher), Problem (Problem), Heat (heiß), Cold (kalt)."
         }
       },
       "thresholds": {

@@ -15,6 +15,7 @@ from typing import Any, Mapping
 
 import voluptuous as vol
 
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.helpers import selector
 
 from .const import (
@@ -23,11 +24,13 @@ from .const import (
     CONF_DELAY_ENABLED,
     CONF_DELAY_TIME,
     CONF_DELAY_UPDATES,
+    CONF_DEVICE_CLASS,
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
     CONF_MODE,
     DEFAULT_DELAY_TIME,
     DEFAULT_DELAY_UPDATES,
+    DEFAULT_DEVICE_CLASS,
     DEFAULT_MAX_TEMP,
     DEFAULT_MIN_TEMP,
     DEFAULT_MODE,
@@ -56,7 +59,7 @@ def _temperature_selector(unit: str | None) -> selector.NumberSelector:
 
 
 def mode_schema(defaults: Settings) -> vol.Schema:
-    """Schema for choosing the Monitoring Mode."""
+    """Schema for choosing the Monitoring Mode and Alarm Device Class."""
     return vol.Schema(
         {
             vol.Required(
@@ -78,6 +81,32 @@ def mode_schema(defaults: Settings) -> vol.Schema:
                         ),
                     ],
                     mode=selector.SelectSelectorMode.LIST,
+                )
+            ),
+            vol.Required(
+                CONF_DEVICE_CLASS,
+                default=defaults.get(CONF_DEVICE_CLASS, DEFAULT_DEVICE_CLASS),
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[
+                        selector.SelectOptionDict(
+                            value=BinarySensorDeviceClass.SAFETY.value,
+                            label="Safety (reports Safe/Unsafe)",
+                        ),
+                        selector.SelectOptionDict(
+                            value=BinarySensorDeviceClass.PROBLEM.value,
+                            label="Problem (reports OK/Problem)",
+                        ),
+                        selector.SelectOptionDict(
+                            value=BinarySensorDeviceClass.HEAT.value,
+                            label="Heat (reports Normal/Hot)",
+                        ),
+                        selector.SelectOptionDict(
+                            value=BinarySensorDeviceClass.COLD.value,
+                            label="Cold (reports Normal/Cold)",
+                        ),
+                    ],
+                    mode=selector.SelectSelectorMode.DROPDOWN,
                 )
             ),
         }

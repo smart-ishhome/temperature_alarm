@@ -8,6 +8,7 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.temperature_alarm.const import (
+    CONF_DEVICE_CLASS,
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
     CONF_MODE,
@@ -113,3 +114,51 @@ async def test_classless_unitless_source_works(hass, enable_custom_integrations)
     hass.states.async_set(source, "40.0")
     await hass.async_block_till_done()
     assert hass.states.get(alarm_id).state == "on"
+
+
+async def _alarm_state(hass, data):
+    """Set up an entry with the given data and return the Alarm's state."""
+    hass.states.async_set(SOURCE, "20.0", {"unit_of_measurement": "°C"})
+
+    entry = MockConfigEntry(domain=DOMAIN, data=data)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    registry = er.async_get(hass)
+    alarm_id = registry.async_get_entity_id(
+        "binary_sensor", DOMAIN, f"{DOMAIN}_{SOURCE}_alarm"
+    )
+    return hass.states.get(alarm_id)
+
+
+async def test_alarm_reports_configured_device_class(
+    hass, enable_custom_integrations
+):
+    state = await _alarm_state(
+        hass,
+        {
+            CONF_SOURCE_ENTITY: SOURCE,
+            CONF_MODE: MODE_MIN_MAX,
+            CONF_MIN_TEMP: 5.0,
+            CONF_MAX_TEMP: 30.0,
+            CONF_DEVICE_CLASS: "cold",
+        },
+    )
+    assert state.attributes["device_class"] == "cold"
+
+
+async def test_entry_without_device_class_stays_problem(
+    hass, enable_custom_integrations
+):
+    # Entries from before the Alarm Device Class existed keep today's class
+    state = await _alarm_state(
+        hass,
+        {
+            CONF_SOURCE_ENTITY: SOURCE,
+            CONF_MODE: MODE_MIN_MAX,
+            CONF_MIN_TEMP: 5.0,
+            CONF_MAX_TEMP: 30.0,
+        },
+    )
+    assert state.attributes["device_class"] == "problem"
