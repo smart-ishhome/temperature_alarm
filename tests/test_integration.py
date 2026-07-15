@@ -223,11 +223,14 @@ async def test_trigger_delay_defers_alarm_until_timer_fires(
     assert state.attributes["alarm_pending"] is True
     assert state.attributes["alarm_pending_updates"] == 1
 
-    # The scheduled re-check fires after the Trigger Delay -> on
+    # The scheduled re-check fires after the Trigger Delay -> on,
+    # and Alarm Pending ends with it
     freezer.tick(timedelta(seconds=31))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
-    assert hass.states.get(alarm_id).state == "on"
+    state = hass.states.get(alarm_id)
+    assert state.state == "on"
+    assert "alarm_pending" not in state.attributes
 
 
 async def test_trigger_delay_recovery_is_immediate_and_stays_off(

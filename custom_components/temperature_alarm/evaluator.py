@@ -43,9 +43,11 @@ class Thresholds:
 class Verdict:
     """The outcome of one evaluation - everything the adapter must apply.
 
-    recheck_in asks the adapter to re-evaluate after that many seconds;
-    it is set only on the evaluation that starts a pending delay. When
-    pending is False any previously requested re-check is obsolete.
+    pending is Alarm Pending: the condition is violated but the alarm
+    has not yet turned on. recheck_in asks the adapter to re-evaluate
+    after that many seconds; it is set only on the evaluation that
+    starts a pending delay, never alongside is_on. When pending is
+    False any previously requested re-check is obsolete.
     """
 
     available: bool
@@ -128,7 +130,9 @@ class AlarmEvaluator:
         delay_time OR the number of Source Sensor updates while the
         condition holds reaches delay_updates. Tracking is not reset
         when the alarm triggers; it clears when the condition stops
-        being met or the reading goes unavailable.
+        being met or the reading goes unavailable. The Verdict stops
+        reporting pending once the alarm is on - tracking is internal
+        from that point.
         """
         recheck_in: float | None = None
         if self._pending_since is None:
@@ -153,11 +157,11 @@ class AlarmEvaluator:
     def _verdict(
         self, is_on: bool, recheck_in: float | None = None
     ) -> Verdict:
-        pending = self._pending_since is not None
+        pending = self._pending_since is not None and not is_on
         return Verdict(
             available=True,
             is_on=is_on,
             pending=pending,
             pending_updates=self._update_count if pending else 0,
-            recheck_in=recheck_in,
+            recheck_in=None if is_on else recheck_in,
         )
