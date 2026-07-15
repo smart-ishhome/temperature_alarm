@@ -64,7 +64,7 @@
   },
   "options": {
     "step": {
-      "init": {
+      "mode": {
         "title": "Opciones de Alarma de Temperatura",
         "description": "Elija cómo monitorear la temperatura.",
         "data": {

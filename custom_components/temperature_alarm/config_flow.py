@@ -1,9 +1,9 @@
 """Config flow for Temperature Alarm integration.
 
-Both flows here are thin adapters over Alarm Settings (settings.py):
-they show its schemas, run its validation, and store the results. The
-options flow mirrors the config flow's steps (minus source selection)
-so each form only shows the fields the chosen Monitoring Mode requires.
+Both flows here are thin adapters over Alarm Settings (settings.py).
+AlarmSettingsSteps runs its step sequence (mode -> thresholds -> delay)
+once for both; each flow contributes only its entry point and its
+terminal action (_finish).
 """
 from __future__ import annotations
 
@@ -26,7 +26,71 @@ from .settings import delay_schema, mode_schema, thresholds_schema, validate
 _LOGGER = logging.getLogger(__name__)
 
 
-class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class AlarmSettingsSteps:
+    """The Alarm Settings step sequence: mode -> thresholds -> delay.
+
+    Mixin for a flow class. Requires self._data with CONF_SOURCE_ENTITY
+    already set by the subclass's entry step; ends by calling _finish(),
+    the subclass's terminal action.
+    """
+
+    _data: dict[str, Any]
+
+    async def async_step_mode(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the mode selection step."""
+        if user_input is not None:
+            self._data.update(user_input)
+            return await self.async_step_thresholds()
+
+        return self.async_show_form(
+            step_id="mode",
+            data_schema=mode_schema(self._data),
+        )
+
+    async def async_step_thresholds(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the threshold configuration step."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            errors = validate({**self._data, **user_input})
+            if not errors:
+                self._data.update(user_input)
+                return await self.async_step_delay()
+
+        # Read the unit live; a Source Sensor gone unavailable just
+        # renders the fields unitless.
+        unit = unit_of(self.hass.states.get(self._data[CONF_SOURCE_ENTITY]))
+        return self.async_show_form(
+            step_id="thresholds",
+            data_schema=thresholds_schema(self._data[CONF_MODE], self._data, unit),
+            errors=errors,
+        )
+
+    async def async_step_delay(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the trigger delay configuration step."""
+        if user_input is not None:
+            self._data.update(user_input)
+            return self._finish()
+
+        return self.async_show_form(
+            step_id="delay",
+            data_schema=delay_schema(self._data),
+        )
+
+    def _finish(self) -> FlowResult:
+        """Store the completed settings; each adapter decides how."""
+        raise NotImplementedError
+
+
+class TemperatureAlarmConfigFlow(
+    AlarmSettingsSteps, config_entries.ConfigFlow, domain=DOMAIN
+):
     """Handle a config flow for Temperature Alarm."""
 
     VERSION = 1
@@ -34,7 +98,6 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialize the config flow."""
         self._data: dict[str, Any] = {}
-        self._unit: str | None = None
         self._show_all: bool = False
 
     async def async_step_user(
@@ -66,7 +129,6 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 if not errors:
                     self._data[CONF_SOURCE_ENTITY] = entity_id
-                    self._unit = unit_of(state)
                     return await self.async_step_mode()
             # No entity picked: the user flipped the toggle - just re-show
 
@@ -97,60 +159,16 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_mode(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle the mode selection step."""
-        if user_input is not None:
-            self._data.update(user_input)
-            return await self.async_step_thresholds()
+    def _finish(self) -> FlowResult:
+        """Create the entry with a friendly title."""
+        entity_reg = er.async_get(self.hass)
+        entity_entry = entity_reg.async_get(self._data[CONF_SOURCE_ENTITY])
+        if entity_entry and entity_entry.name:
+            title = f"{entity_entry.name} Alarm"
+        else:
+            title = f"Temperature Alarm ({self._data[CONF_SOURCE_ENTITY]})"
 
-        return self.async_show_form(
-            step_id="mode",
-            data_schema=mode_schema(self._data),
-        )
-
-    async def async_step_thresholds(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle the threshold configuration step."""
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            errors = validate({**self._data, **user_input})
-            if not errors:
-                self._data.update(user_input)
-                return await self.async_step_delay()
-
-        return self.async_show_form(
-            step_id="thresholds",
-            data_schema=thresholds_schema(
-                self._data[CONF_MODE], self._data, self._unit
-            ),
-            errors=errors,
-        )
-
-    async def async_step_delay(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle the trigger delay configuration step."""
-        if user_input is not None:
-            self._data.update(user_input)
-
-            # Create friendly title
-            entity_reg = er.async_get(self.hass)
-            entity_entry = entity_reg.async_get(self._data[CONF_SOURCE_ENTITY])
-            if entity_entry and entity_entry.name:
-                title = f"{entity_entry.name} Alarm"
-            else:
-                title = f"Temperature Alarm ({self._data[CONF_SOURCE_ENTITY]})"
-
-            return self.async_create_entry(title=title, data=self._data)
-
-        return self.async_show_form(
-            step_id="delay",
-            data_schema=delay_schema(self._data),
-        )
+        return self.async_create_entry(title=title, data=self._data)
 
     @staticmethod
     @callback
@@ -161,11 +179,11 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return TemperatureAlarmOptionsFlow(config_entry)
 
 
-class TemperatureAlarmOptionsFlow(config_entries.OptionsFlow):
+class TemperatureAlarmOptionsFlow(AlarmSettingsSteps, config_entries.OptionsFlow):
     """Handle options flow for Temperature Alarm.
 
-    Mirrors the config flow's steps (mode, thresholds, delay) with the
-    entry's current data as defaults; the Source Sensor is fixed.
+    Runs the same step sequence with the entry's current data as
+    defaults; the Source Sensor is fixed.
     """
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
@@ -176,47 +194,12 @@ class TemperatureAlarmOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the mode selection step."""
-        if user_input is not None:
-            self._data.update(user_input)
-            return await self.async_step_thresholds()
+        """Entry point; the sequence starts at mode."""
+        return await self.async_step_mode(user_input)
 
-        return self.async_show_form(
-            step_id="init",
-            data_schema=mode_schema(self._data),
+    def _finish(self) -> FlowResult:
+        """Write the settings back onto the entry."""
+        self.hass.config_entries.async_update_entry(
+            self._config_entry, data=self._data
         )
-
-    async def async_step_thresholds(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle the threshold configuration step."""
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            errors = validate({**self._data, **user_input})
-            if not errors:
-                self._data.update(user_input)
-                return await self.async_step_delay()
-
-        unit = unit_of(self.hass.states.get(self._data[CONF_SOURCE_ENTITY]))
-        return self.async_show_form(
-            step_id="thresholds",
-            data_schema=thresholds_schema(self._data[CONF_MODE], self._data, unit),
-            errors=errors,
-        )
-
-    async def async_step_delay(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle the trigger delay configuration step."""
-        if user_input is not None:
-            self._data.update(user_input)
-            self.hass.config_entries.async_update_entry(
-                self._config_entry, data=self._data
-            )
-            return self.async_create_entry(title="", data={})
-
-        return self.async_show_form(
-            step_id="delay",
-            data_schema=delay_schema(self._data),
-        )
+        return self.async_create_entry(title="", data={})
