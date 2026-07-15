@@ -1,4 +1,10 @@
-"""Config flow for Temperature Alarm integration."""
+"""Config flow for Temperature Alarm integration.
+
+Both flows here are thin adapters over Alarm Settings (settings.py):
+they show its schemas, run its validation, and store the results. The
+options flow mirrors the config flow's steps (minus source selection)
+so each form only shows the fields the chosen Monitoring Mode requires.
+"""
 from __future__ import annotations
 
 import logging
@@ -14,30 +20,8 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 
-from .const import (
-    CONF_CREATE_MAX_ENTITY,
-    CONF_CREATE_MIN_ENTITY,
-    CONF_DELAY_ENABLED,
-    CONF_DELAY_TIME,
-    CONF_DELAY_UPDATES,
-    CONF_MAX_TEMP,
-    CONF_MIN_TEMP,
-    CONF_MODE,
-    CONF_SOURCE_ENTITY,
-    DEFAULT_DELAY_TIME,
-    DEFAULT_DELAY_UPDATES,
-    DEFAULT_MAX_TEMP,
-    DEFAULT_MIN_TEMP,
-    DEFAULT_MODE,
-    DOMAIN,
-    MAX_TEMP_LIMIT,
-    MIN_TEMP_LIMIT,
-    MODE_MAX_ONLY,
-    MODE_MIN_MAX,
-    MODE_MIN_ONLY,
-    MODES,
-    TEMP_STEP,
-)
+from .const import CONF_MODE, CONF_SOURCE_ENTITY, DOMAIN
+from .settings import delay_schema, mode_schema, thresholds_schema, validate
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,11 +52,11 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             entity_id = user_input[CONF_SOURCE_ENTITY]
-            
+
             # Check if already configured
             await self.async_set_unique_id(f"{DOMAIN}_{entity_id}")
             self._abort_if_unique_id_configured()
-            
+
             # Validate the entity
             state = self.hass.states.get(entity_id)
             if state is None:
@@ -106,36 +90,12 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle the mode selection step."""
         if user_input is not None:
-            self._data[CONF_MODE] = user_input[CONF_MODE]
+            self._data.update(user_input)
             return await self.async_step_thresholds()
-
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_MODE, default=DEFAULT_MODE): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=[
-                            selector.SelectOptionDict(
-                                value=MODE_MIN_ONLY,
-                                label="Minimum Only (alert when too cold)",
-                            ),
-                            selector.SelectOptionDict(
-                                value=MODE_MAX_ONLY,
-                                label="Maximum Only (alert when too hot)",
-                            ),
-                            selector.SelectOptionDict(
-                                value=MODE_MIN_MAX,
-                                label="Min/Max Range (alert when outside range)",
-                            ),
-                        ],
-                        mode=selector.SelectSelectorMode.LIST,
-                    )
-                ),
-            }
-        )
 
         return self.async_show_form(
             step_id="mode",
-            data_schema=schema,
+            data_schema=mode_schema(self._data),
         )
 
     async def async_step_thresholds(
@@ -143,65 +103,18 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle the threshold configuration step."""
         errors: dict[str, str] = {}
-        mode = self._data[CONF_MODE]
 
         if user_input is not None:
-            min_temp = user_input.get(CONF_MIN_TEMP)
-            max_temp = user_input.get(CONF_MAX_TEMP)
-            create_min = user_input.get(CONF_CREATE_MIN_ENTITY, True)
-            create_max = user_input.get(CONF_CREATE_MAX_ENTITY, True)
-
-            # Validate min < max for min_max mode
-            if mode == MODE_MIN_MAX and min_temp is not None and max_temp is not None:
-                if min_temp >= max_temp:
-                    errors["base"] = "min_greater_than_max"
-
+            errors = validate({**self._data, **user_input})
             if not errors:
-                self._data[CONF_MIN_TEMP] = min_temp
-                self._data[CONF_MAX_TEMP] = max_temp
-                self._data[CONF_CREATE_MIN_ENTITY] = create_min
-                self._data[CONF_CREATE_MAX_ENTITY] = create_max
-
+                self._data.update(user_input)
                 return await self.async_step_delay()
-
-        # Build schema based on mode
-        schema_dict: dict[Any, Any] = {}
-
-        if mode in (MODE_MIN_ONLY, MODE_MIN_MAX):
-            schema_dict[vol.Required(CONF_MIN_TEMP, default=DEFAULT_MIN_TEMP)] = (
-                selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=MIN_TEMP_LIMIT,
-                        max=MAX_TEMP_LIMIT,
-                        step=TEMP_STEP,
-                        unit_of_measurement=self._unit,
-                        mode=selector.NumberSelectorMode.BOX,
-                    )
-                )
-            )
-            schema_dict[vol.Required(CONF_CREATE_MIN_ENTITY, default=True)] = (
-                selector.BooleanSelector()
-            )
-
-        if mode in (MODE_MAX_ONLY, MODE_MIN_MAX):
-            schema_dict[vol.Required(CONF_MAX_TEMP, default=DEFAULT_MAX_TEMP)] = (
-                selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=MIN_TEMP_LIMIT,
-                        max=MAX_TEMP_LIMIT,
-                        step=TEMP_STEP,
-                        unit_of_measurement=self._unit,
-                        mode=selector.NumberSelectorMode.BOX,
-                    )
-                )
-            )
-            schema_dict[vol.Required(CONF_CREATE_MAX_ENTITY, default=True)] = (
-                selector.BooleanSelector()
-            )
 
         return self.async_show_form(
             step_id="thresholds",
-            data_schema=vol.Schema(schema_dict),
+            data_schema=thresholds_schema(
+                self._data[CONF_MODE], self._data, self._unit
+            ),
             errors=errors,
         )
 
@@ -210,9 +123,7 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle the trigger delay configuration step."""
         if user_input is not None:
-            self._data[CONF_DELAY_ENABLED] = user_input.get(CONF_DELAY_ENABLED, False)
-            self._data[CONF_DELAY_TIME] = user_input.get(CONF_DELAY_TIME, DEFAULT_DELAY_TIME)
-            self._data[CONF_DELAY_UPDATES] = user_input.get(CONF_DELAY_UPDATES, DEFAULT_DELAY_UPDATES)
+            self._data.update(user_input)
 
             # Create friendly title
             entity_reg = er.async_get(self.hass)
@@ -224,32 +135,9 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             return self.async_create_entry(title=title, data=self._data)
 
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_DELAY_ENABLED, default=False): selector.BooleanSelector(),
-                vol.Required(CONF_DELAY_TIME, default=DEFAULT_DELAY_TIME): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=1,
-                        max=3600,
-                        step=1,
-                        unit_of_measurement="seconds",
-                        mode=selector.NumberSelectorMode.BOX,
-                    )
-                ),
-                vol.Required(CONF_DELAY_UPDATES, default=DEFAULT_DELAY_UPDATES): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=1,
-                        max=100,
-                        step=1,
-                        mode=selector.NumberSelectorMode.BOX,
-                    )
-                ),
-            }
-        )
-
         return self.async_show_form(
             step_id="delay",
-            data_schema=schema,
+            data_schema=delay_schema(self._data),
         )
 
     @staticmethod
@@ -262,128 +150,61 @@ class TemperatureAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class TemperatureAlarmOptionsFlow(config_entries.OptionsFlow):
-    """Handle options flow for Temperature Alarm."""
+    """Handle options flow for Temperature Alarm.
+
+    Mirrors the config flow's steps (mode, thresholds, delay) with the
+    entry's current data as defaults; the Source Sensor is fixed.
+    """
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
         self._config_entry = config_entry
+        self._data: dict[str, Any] = dict(config_entry.data)
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle options flow."""
-        errors: dict[str, str] = {}
-        
-        current_mode = self._config_entry.data.get(CONF_MODE, DEFAULT_MODE)
-        current_min = self._config_entry.data.get(CONF_MIN_TEMP, DEFAULT_MIN_TEMP)
-        current_max = self._config_entry.data.get(CONF_MAX_TEMP, DEFAULT_MAX_TEMP)
-        current_create_min = self._config_entry.data.get(CONF_CREATE_MIN_ENTITY, True)
-        current_create_max = self._config_entry.data.get(CONF_CREATE_MAX_ENTITY, True)
-        current_delay_enabled = self._config_entry.data.get(CONF_DELAY_ENABLED, False)
-        current_delay_time = self._config_entry.data.get(CONF_DELAY_TIME, DEFAULT_DELAY_TIME)
-        current_delay_updates = self._config_entry.data.get(CONF_DELAY_UPDATES, DEFAULT_DELAY_UPDATES)
-        source_entity = self._config_entry.data.get(CONF_SOURCE_ENTITY)
-        
-        unit = _get_entity_unit(self.hass, source_entity)
-
+        """Handle the mode selection step."""
         if user_input is not None:
-            new_mode = user_input.get(CONF_MODE, current_mode)
-            new_min = user_input.get(CONF_MIN_TEMP)
-            new_max = user_input.get(CONF_MAX_TEMP)
-            new_create_min = user_input.get(CONF_CREATE_MIN_ENTITY, True)
-            new_create_max = user_input.get(CONF_CREATE_MAX_ENTITY, True)
-            new_delay_enabled = user_input.get(CONF_DELAY_ENABLED, False)
-            new_delay_time = user_input.get(CONF_DELAY_TIME, DEFAULT_DELAY_TIME)
-            new_delay_updates = user_input.get(CONF_DELAY_UPDATES, DEFAULT_DELAY_UPDATES)
-
-            # Validate min < max for min_max mode
-            if new_mode == MODE_MIN_MAX and new_min is not None and new_max is not None:
-                if new_min >= new_max:
-                    errors["base"] = "min_greater_than_max"
-
-            if not errors:
-                # Update the config entry data
-                new_data = {
-                    **self._config_entry.data,
-                    CONF_MODE: new_mode,
-                    CONF_CREATE_MIN_ENTITY: new_create_min,
-                    CONF_CREATE_MAX_ENTITY: new_create_max,
-                    CONF_DELAY_ENABLED: new_delay_enabled,
-                    CONF_DELAY_TIME: new_delay_time,
-                    CONF_DELAY_UPDATES: new_delay_updates,
-                }
-                if new_min is not None:
-                    new_data[CONF_MIN_TEMP] = new_min
-                if new_max is not None:
-                    new_data[CONF_MAX_TEMP] = new_max
-
-                self.hass.config_entries.async_update_entry(
-                    self._config_entry, data=new_data
-                )
-                return self.async_create_entry(title="", data={})
-
-        schema_dict: dict[Any, Any] = {
-            vol.Required(CONF_MODE, default=current_mode): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=[
-                        selector.SelectOptionDict(
-                            value=MODE_MIN_ONLY,
-                            label="Minimum Only (alert when too cold)",
-                        ),
-                        selector.SelectOptionDict(
-                            value=MODE_MAX_ONLY,
-                            label="Maximum Only (alert when too hot)",
-                        ),
-                        selector.SelectOptionDict(
-                            value=MODE_MIN_MAX,
-                            label="Min/Max Range (alert when outside range)",
-                        ),
-                    ],
-                    mode=selector.SelectSelectorMode.LIST,
-                )
-            ),
-            vol.Optional(CONF_MIN_TEMP, default=current_min): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=MIN_TEMP_LIMIT,
-                    max=MAX_TEMP_LIMIT,
-                    step=TEMP_STEP,
-                    unit_of_measurement=unit,
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(CONF_CREATE_MIN_ENTITY, default=current_create_min): selector.BooleanSelector(),
-            vol.Optional(CONF_MAX_TEMP, default=current_max): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=MIN_TEMP_LIMIT,
-                    max=MAX_TEMP_LIMIT,
-                    step=TEMP_STEP,
-                    unit_of_measurement=unit,
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(CONF_CREATE_MAX_ENTITY, default=current_create_max): selector.BooleanSelector(),
-            vol.Required(CONF_DELAY_ENABLED, default=current_delay_enabled): selector.BooleanSelector(),
-            vol.Required(CONF_DELAY_TIME, default=current_delay_time): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=1,
-                    max=3600,
-                    step=1,
-                    unit_of_measurement="seconds",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(CONF_DELAY_UPDATES, default=current_delay_updates): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=1,
-                    max=100,
-                    step=1,
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-        }
+            self._data.update(user_input)
+            return await self.async_step_thresholds()
 
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema(schema_dict),
+            data_schema=mode_schema(self._data),
+        )
+
+    async def async_step_thresholds(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the threshold configuration step."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            errors = validate({**self._data, **user_input})
+            if not errors:
+                self._data.update(user_input)
+                return await self.async_step_delay()
+
+        unit = _get_entity_unit(self.hass, self._data[CONF_SOURCE_ENTITY])
+        return self.async_show_form(
+            step_id="thresholds",
+            data_schema=thresholds_schema(self._data[CONF_MODE], self._data, unit),
             errors=errors,
+        )
+
+    async def async_step_delay(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the trigger delay configuration step."""
+        if user_input is not None:
+            self._data.update(user_input)
+            self.hass.config_entries.async_update_entry(
+                self._config_entry, data=self._data
+            )
+            return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="delay",
+            data_schema=delay_schema(self._data),
         )

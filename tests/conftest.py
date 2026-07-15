@@ -16,7 +16,7 @@ sys.path.insert(0, str(_REPO_ROOT))
 
 if importlib.util.find_spec("homeassistant") is None:
     # HA harness not installed (evaluator-only CI): skip the HA-facing tests
-    collect_ignore = ["test_thresholds.py", "test_integration.py"]
+    collect_ignore = ["test_thresholds.py", "test_integration.py", "test_settings.py"]
 else:
     import pytest_socket
 
