@@ -3,9 +3,13 @@
     "step": {
       "user": {
         "title": "Temperatur-Alarm Einrichtung",
-        "description": "Wählen Sie einen Temperatursensor zur Überwachung von Alarmbedingungen aus.",
+        "description": "Wählen Sie einen Temperatursensor zur Überwachung von Alarmbedingungen aus. Wenn Ihr Sensor keine Geräteklasse hat, aktivieren Sie die Option unten, um alle Sensoren anzuzeigen.",
         "data": {
-          "source_entity": "Temperatursensor"
+          "source_entity": "Temperatursensor",
+          "show_all_sensors": "Mein Sensor wird nicht angezeigt (alle Sensoren anzeigen)"
+        },
+        "data_description": {
+          "show_all_sensors": "Wenn aktiviert, listet die Auswahl alle Sensoren auf, auch Sensoren ohne Geräteklasse. Der gewählte Sensor muss aktuell einen numerischen Wert melden."
         }
       },
       "mode": {
@@ -49,6 +53,7 @@
     },
     "error": {
       "invalid_entity": "Die ausgewählte Entität ist kein gültiger Temperatursensor.",
+      "state_not_numeric": "Der ausgewählte Sensor meldet aktuell keinen numerischen Wert.",
       "min_greater_than_max": "Die Mindesttemperatur muss niedriger als die Höchsttemperatur sein."
     },
     "abort": {

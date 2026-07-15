@@ -72,3 +72,44 @@ async def test_alarm_follows_source_and_thresholds(hass, enable_custom_integrati
     hass.states.async_set(SOURCE, "unavailable")
     await hass.async_block_till_done()
     assert hass.states.get(alarm_id).state == "unavailable"
+
+
+async def test_classless_unitless_source_works(hass, enable_custom_integrations):
+    """A Source Sensor with no device_class and no unit still drives the Alarm.
+
+    Its Threshold Entities must not invent a unit (°C fallback removed).
+    """
+    source = "sensor.attic_diy"
+    hass.states.async_set(source, "20.0")
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_SOURCE_ENTITY: source,
+            CONF_MODE: MODE_MIN_MAX,
+            CONF_MIN_TEMP: 5.0,
+            CONF_MAX_TEMP: 30.0,
+        },
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    registry = er.async_get(hass)
+    alarm_id = registry.async_get_entity_id(
+        "binary_sensor", DOMAIN, f"{DOMAIN}_{source}_alarm"
+    )
+    max_threshold_id = registry.async_get_entity_id(
+        "number", DOMAIN, threshold_unique_id(source, "max")
+    )
+    assert alarm_id and max_threshold_id
+
+    # No unit invented on the Threshold Entity
+    threshold_state = hass.states.get(max_threshold_id)
+    assert threshold_state.attributes.get("unit_of_measurement") is None
+
+    # Alarm still follows Readings
+    assert hass.states.get(alarm_id).state == "off"
+    hass.states.async_set(source, "40.0")
+    await hass.async_block_till_done()
+    assert hass.states.get(alarm_id).state == "on"

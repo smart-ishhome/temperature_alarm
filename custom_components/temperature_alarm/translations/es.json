@@ -3,9 +3,13 @@
     "step": {
       "user": {
         "title": "Configuración de Alarma de Temperatura",
-        "description": "Seleccione un sensor de temperatura para monitorear las condiciones de alarma.",
+        "description": "Seleccione un sensor de temperatura para monitorear las condiciones de alarma. Si su sensor no tiene clase de dispositivo, active la opción de abajo para mostrar todos los sensores.",
         "data": {
-          "source_entity": "Sensor de Temperatura"
+          "source_entity": "Sensor de Temperatura",
+          "show_all_sensors": "Mi sensor no aparece (mostrar todos los sensores)"
+        },
+        "data_description": {
+          "show_all_sensors": "Cuando está habilitado, el selector muestra todos los sensores, incluidos los sensores sin clase de dispositivo. El sensor elegido debe reportar actualmente un valor numérico."
         }
       },
       "mode": {
@@ -49,6 +53,7 @@
     },
     "error": {
       "invalid_entity": "La entidad seleccionada no es un sensor de temperatura válido.",
+      "state_not_numeric": "El sensor seleccionado no reporta actualmente un valor numérico.",
       "min_greater_than_max": "La temperatura mínima debe ser menor que la temperatura máxima."
     },
     "abort": {

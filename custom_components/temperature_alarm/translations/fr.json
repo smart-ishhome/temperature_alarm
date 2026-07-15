@@ -3,9 +3,13 @@
     "step": {
       "user": {
         "title": "Configuration de l'Alarme de Température",
-        "description": "Sélectionnez un capteur de température à surveiller pour les conditions d'alarme.",
+        "description": "Sélectionnez un capteur de température à surveiller pour les conditions d'alarme. Si votre capteur n'a pas de classe d'appareil, activez l'option ci-dessous pour afficher tous les capteurs.",
         "data": {
-          "source_entity": "Capteur de Température"
+          "source_entity": "Capteur de Température",
+          "show_all_sensors": "Mon capteur n'est pas listé (afficher tous les capteurs)"
+        },
+        "data_description": {
+          "show_all_sensors": "Lorsqu'activé, le sélecteur affiche tous les capteurs, y compris les capteurs sans classe d'appareil. Le capteur choisi doit actuellement rapporter une valeur numérique."
         }
       },
       "mode": {
@@ -49,6 +53,7 @@
     },
     "error": {
       "invalid_entity": "L'entité sélectionnée n'est pas un capteur de température valide.",
+      "state_not_numeric": "Le capteur sélectionné ne rapporte pas actuellement de valeur numérique.",
       "min_greater_than_max": "La température minimale doit être inférieure à la température maximale."
     },
     "abort": {

@@ -5,6 +5,10 @@ DOMAIN = "temperature_alarm"
 # Configuration keys
 CONF_SOURCE_ENTITY = "source_entity"
 CONF_MODE = "mode"
+
+# Flow-only key for the "show all sensors" toggle on the source-selection
+# step; never persisted into entry data
+CONF_SHOW_ALL_SENSORS = "show_all_sensors"
 CONF_MIN_TEMP = "min_temp"
 CONF_MAX_TEMP = "max_temp"
 

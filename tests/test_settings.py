@@ -41,6 +41,13 @@ def default_of(schema: vol.Schema, key: str):
     raise KeyError(key)
 
 
+def selector_config(schema: vol.Schema, key: str) -> dict:
+    for marker, sel in schema.schema.items():
+        if str(marker) == key:
+            return sel.config
+    raise KeyError(key)
+
+
 # which fields a Monitoring Mode requires
 
 
@@ -62,6 +69,21 @@ def test_min_max_has_both_sides():
         CONF_MAX_TEMP,
         CONF_CREATE_MAX_ENTITY,
     }
+
+
+# unit threading: known unit suffixes the fields, unknown renders unitless
+
+
+def test_known_unit_suffixes_threshold_fields():
+    schema = thresholds_schema(MODE_MIN_MAX, {}, "°F")
+    assert selector_config(schema, CONF_MIN_TEMP)["unit_of_measurement"] == "°F"
+    assert selector_config(schema, CONF_MAX_TEMP)["unit_of_measurement"] == "°F"
+
+
+def test_unitless_source_renders_fields_without_unit():
+    schema = thresholds_schema(MODE_MIN_MAX, {}, None)
+    assert "unit_of_measurement" not in selector_config(schema, CONF_MIN_TEMP)
+    assert "unit_of_measurement" not in selector_config(schema, CONF_MAX_TEMP)
 
 
 # defaults threading: built-in defaults vs entry data
