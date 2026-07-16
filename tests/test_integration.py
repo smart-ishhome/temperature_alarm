@@ -8,6 +8,7 @@ modules in isolation.
 """
 from datetime import timedelta
 
+import pytest
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import (
@@ -150,6 +151,33 @@ async def test_classless_unitless_source_works(hass, enable_custom_integrations)
     # Alarm still follows Readings
     assert hass.states.get(alarm_id).state == "off"
     hass.states.async_set(source, "40.0")
+    await hass.async_block_till_done()
+    assert hass.states.get(alarm_id).state == "on"
+
+
+async def test_source_unit_flip_converts_thresholds(
+    hass, enable_custom_integrations
+):
+    """A Source Sensor unit change must not corrupt comparisons.
+
+    The Threshold Entities keep their °C unit; Threshold Resolution
+    converts their values to the source's new unit on every refresh.
+    """
+    hass.states.async_set(SOURCE, "20.0", {"unit_of_measurement": "°C"})
+    _, alarm_id = await _setup_entry(hass, BASE_DATA)
+    assert hass.states.get(alarm_id).state == "off"
+
+    # Source flips to °F: 80 °F is 26.7 °C, inside the 5-30 °C range.
+    # A raw comparison against max=30 would wrongly alarm.
+    hass.states.async_set(SOURCE, "80.0", {"unit_of_measurement": "°F"})
+    await hass.async_block_till_done()
+    state = hass.states.get(alarm_id)
+    assert state.state == "off"
+    assert state.attributes["min_threshold"] == pytest.approx(41.0)  # 5 °C
+    assert state.attributes["max_threshold"] == pytest.approx(86.0)  # 30 °C
+
+    # 90 °F is 32.2 °C - genuinely above max -> on
+    hass.states.async_set(SOURCE, "90.0", {"unit_of_measurement": "°F"})
     await hass.async_block_till_done()
     assert hass.states.get(alarm_id).state == "on"
 

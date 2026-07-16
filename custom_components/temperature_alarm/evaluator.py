@@ -85,6 +85,21 @@ class AlarmEvaluator:
         self._pending_since: float | None = None
         self._update_count = 0
 
+    @property
+    def delay_enabled(self) -> bool:
+        """Whether a Trigger Delay is configured for this alarm."""
+        return self._delay_enabled
+
+    @property
+    def delay_time(self) -> float:
+        """The Trigger Delay's time criterion, in seconds."""
+        return self._delay_time
+
+    @property
+    def delay_updates(self) -> int:
+        """The Trigger Delay's Source Sensor update-count criterion."""
+        return self._delay_updates
+
     def evaluate(
         self,
         reading: float | None,

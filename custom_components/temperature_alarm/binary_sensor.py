@@ -93,17 +93,13 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
         self._resolver = resolver
         self._last_thresholds: Thresholds | None = None
 
-        # Delay configuration (kept for extra_state_attributes)
-        self._delay_enabled = entry.data.get(CONF_DELAY_ENABLED, False)
-        self._delay_time = entry.data.get(CONF_DELAY_TIME, DEFAULT_DELAY_TIME)
-        self._delay_updates = entry.data.get(CONF_DELAY_UPDATES, DEFAULT_DELAY_UPDATES)
-
-        # All alarm semantics live in the evaluator
+        # All alarm semantics live in the evaluator; it also owns the
+        # delay configuration (read back for extra_state_attributes)
         self._evaluator = AlarmEvaluator(
             mode=mode,
-            delay_enabled=self._delay_enabled,
-            delay_time=self._delay_time,
-            delay_updates=self._delay_updates,
+            delay_enabled=entry.data.get(CONF_DELAY_ENABLED, False),
+            delay_time=entry.data.get(CONF_DELAY_TIME, DEFAULT_DELAY_TIME),
+            delay_updates=entry.data.get(CONF_DELAY_UPDATES, DEFAULT_DELAY_UPDATES),
         )
         self._last_verdict: Verdict | None = None
         self._delay_timer_cancel: CALLBACK_TYPE | None = None
@@ -235,10 +231,10 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
                 attrs["max_threshold"] = thresholds.max
 
         # Add delay info if enabled
-        if self._delay_enabled:
+        if self._evaluator.delay_enabled:
             attrs["delay_enabled"] = True
-            attrs["delay_time"] = self._delay_time
-            attrs["delay_updates"] = self._delay_updates
+            attrs["delay_time"] = self._evaluator.delay_time
+            attrs["delay_updates"] = self._evaluator.delay_updates
             if self._last_verdict is not None and self._last_verdict.pending:
                 attrs["alarm_pending"] = True
                 attrs["alarm_pending_updates"] = self._last_verdict.pending_updates

@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .const import (
     CONF_CREATE_MAX_ENTITY,
@@ -22,13 +23,14 @@ from .const import (
     CONF_MIN_TEMP,
     CONF_MODE,
     CONF_SOURCE_ENTITY,
+    CONF_THRESHOLD_UNIT,
     DOMAIN,
     MODE_MAX_ONLY,
     MODE_MIN_MAX,
     MODE_MIN_ONLY,
 )
 from .evaluator import Thresholds
-from .reading import reading_of
+from .reading import reading_of, unit_of
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,6 +42,22 @@ _MODES_WITH = {
 }
 _CREATE_FLAG = {"min": CONF_CREATE_MIN_ENTITY, "max": CONF_CREATE_MAX_ENTITY}
 _CONFIG_KEY = {"min": CONF_MIN_TEMP, "max": CONF_MAX_TEMP}
+
+
+def _convert(value: float, from_unit: str | None, to_unit: str | None) -> float:
+    """Convert a Threshold value between temperature units.
+
+    Conversion happens only when both units are known temperature units
+    and differ; any absent or non-temperature unit passes the value
+    through raw, so unitless and non-temperature sources keep working.
+    """
+    if (
+        from_unit == to_unit
+        or from_unit not in TemperatureConverter.VALID_UNITS
+        or to_unit not in TemperatureConverter.VALID_UNITS
+    ):
+        return value
+    return TemperatureConverter.convert(value, from_unit, to_unit)
 
 
 def wants_entity(data: Mapping[str, Any], kind: str) -> bool:
@@ -77,7 +95,10 @@ class ThresholdResolver:
     """Resolves the current Thresholds and notifies on changes.
 
     Values come from the Threshold Entity's state when one exists and
-    yields a Reading, otherwise from the config entry.
+    yields a Reading, otherwise from the config entry. Either way they
+    are expressed in the Source Sensor's current unit: values whose
+    unit is a different temperature unit are converted, anything else
+    is compared raw.
     """
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -85,8 +106,14 @@ class ThresholdResolver:
         self._entry = entry
 
     def current(self) -> Thresholds:
-        """Resolve the current Thresholds."""
-        return Thresholds(min=self._value("min"), max=self._value("max"))
+        """Resolve the current Thresholds, in the Source Sensor's unit."""
+        target_unit = unit_of(
+            self._hass.states.get(self._entry.data[CONF_SOURCE_ENTITY])
+        )
+        return Thresholds(
+            min=self._value("min", target_unit),
+            max=self._value("max", target_unit),
+        )
 
     def async_subscribe(self, on_change: Callable[[], None]) -> CALLBACK_TYPE:
         """Call on_change whenever a Threshold Entity's state changes.
@@ -114,17 +141,22 @@ class ThresholdResolver:
             "number", DOMAIN, threshold_unique_id(source_entity_id, kind)
         )
 
-    def _value(self, kind: str) -> float | None:
+    def _value(self, kind: str, target_unit: str | None) -> float | None:
         entity_id = self._entity_id(kind)
         if entity_id is not None:
             state = self._hass.states.get(entity_id)
             reading = reading_of(state)
             if reading is not None:
-                return reading
+                return _convert(reading, unit_of(state), target_unit)
             if state is not None:
                 _LOGGER.debug(
                     "No Reading from %s Threshold Entity (state: %r), using config",
                     kind,
                     state.state,
                 )
-        return self._entry.data.get(_CONFIG_KEY[kind])
+        value = self._entry.data.get(_CONFIG_KEY[kind])
+        if value is None:
+            return None
+        return _convert(
+            value, self._entry.data.get(CONF_THRESHOLD_UNIT), target_unit
+        )

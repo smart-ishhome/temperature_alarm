@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .const import (
     CONF_MAX_TEMP,
@@ -68,7 +69,6 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
     """Number entity for temperature threshold."""
 
     _attr_has_entity_name = True
-    _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_entity_category = EntityCategory.CONFIG
     _attr_mode = NumberMode.BOX
     _attr_native_min_value = MIN_TEMP_LIMIT
@@ -91,6 +91,13 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
         self._initial_value = initial_value
         self._attr_native_value = initial_value
         self._attr_native_unit_of_measurement = unit
+        # Announce as a temperature only when the source's unit really
+        # is one; a unitless or non-temperature source gets no class.
+        self._attr_device_class = (
+            NumberDeviceClass.TEMPERATURE
+            if unit in TemperatureConverter.VALID_UNITS
+            else None
+        )
 
         _LOGGER.debug(
             "Initializing %s threshold entity with value %.2f %s",
