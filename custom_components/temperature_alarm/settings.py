@@ -40,6 +40,7 @@ from .const import (
     MODE_MIN_MAX,
     MODE_MIN_ONLY,
     TEMP_STEP,
+    watches,
 )
 
 Settings = Mapping[str, Any]
@@ -117,7 +118,7 @@ def thresholds_schema(mode: str, defaults: Settings, unit: str | None) -> vol.Sc
     """Schema for the Thresholds a Monitoring Mode requires."""
     schema_dict: dict[Any, Any] = {}
 
-    if mode in (MODE_MIN_ONLY, MODE_MIN_MAX):
+    if watches(mode, "min"):
         schema_dict[
             vol.Required(
                 CONF_MIN_TEMP,
@@ -131,7 +132,7 @@ def thresholds_schema(mode: str, defaults: Settings, unit: str | None) -> vol.Sc
             )
         ] = selector.BooleanSelector()
 
-    if mode in (MODE_MAX_ONLY, MODE_MIN_MAX):
+    if watches(mode, "max"):
         schema_dict[
             vol.Required(
                 CONF_MAX_TEMP,

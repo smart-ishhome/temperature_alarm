@@ -24,24 +24,23 @@ from .const import (
     CONF_MODE,
     CONF_SOURCE_ENTITY,
     CONF_THRESHOLD_UNIT,
+    DEFAULT_MODE,
     DOMAIN,
-    MODE_MAX_ONLY,
-    MODE_MIN_MAX,
-    MODE_MIN_ONLY,
+    KINDS,
+    watches,
 )
 from .evaluator import Thresholds
 from .reading import reading_of, unit_of
 
 _LOGGER = logging.getLogger(__name__)
 
-KINDS = ("min", "max")
-
-_MODES_WITH = {
-    "min": (MODE_MIN_ONLY, MODE_MIN_MAX),
-    "max": (MODE_MAX_ONLY, MODE_MIN_MAX),
-}
 _CREATE_FLAG = {"min": CONF_CREATE_MIN_ENTITY, "max": CONF_CREATE_MAX_ENTITY}
 _CONFIG_KEY = {"min": CONF_MIN_TEMP, "max": CONF_MAX_TEMP}
+
+
+def is_temperature_unit(unit: str | None) -> bool:
+    """Whether this is a unit temperatures convert across."""
+    return unit in TemperatureConverter.VALID_UNITS
 
 
 def _convert(value: float, from_unit: str | None, to_unit: str | None) -> float:
@@ -53,8 +52,8 @@ def _convert(value: float, from_unit: str | None, to_unit: str | None) -> float:
     """
     if (
         from_unit == to_unit
-        or from_unit not in TemperatureConverter.VALID_UNITS
-        or to_unit not in TemperatureConverter.VALID_UNITS
+        or not is_temperature_unit(from_unit)
+        or not is_temperature_unit(to_unit)
     ):
         return value
     return TemperatureConverter.convert(value, from_unit, to_unit)
@@ -62,8 +61,8 @@ def _convert(value: float, from_unit: str | None, to_unit: str | None) -> float:
 
 def wants_entity(data: Mapping[str, Any], kind: str) -> bool:
     """Whether a Threshold Entity of this kind should exist for the entry."""
-    mode = data.get(CONF_MODE, MODE_MIN_MAX)
-    return mode in _MODES_WITH[kind] and data.get(_CREATE_FLAG[kind], True)
+    mode = data.get(CONF_MODE, DEFAULT_MODE)
+    return watches(mode, kind) and data.get(_CREATE_FLAG[kind], True)
 
 
 def threshold_unique_id(source_entity_id: str, kind: str) -> str:

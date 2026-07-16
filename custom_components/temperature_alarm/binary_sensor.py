@@ -21,6 +21,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event, async_call_later
 
+from . import AlarmRuntimeData
 from .const import (
     CONF_DELAY_ENABLED,
     CONF_DELAY_TIME,
@@ -30,10 +31,9 @@ from .const import (
     DEFAULT_DELAY_TIME,
     DEFAULT_DELAY_UPDATES,
     DEFAULT_DEVICE_CLASS,
+    DEFAULT_MODE,
     DOMAIN,
-    MODE_MAX_ONLY,
-    MODE_MIN_MAX,
-    MODE_MIN_ONLY,
+    watches,
 )
 from .evaluator import AlarmEvaluator, Thresholds, Trigger, Verdict
 from .reading import reading_of
@@ -42,22 +42,29 @@ from .thresholds import ThresholdResolver
 _LOGGER = logging.getLogger(__name__)
 
 
+def alarm_unique_id(source_entity_id: str) -> str:
+    """Unique ID of the Alarm.
+
+    The format is persisted in the entity registry; changing it orphans
+    existing entities.
+    """
+    return f"{DOMAIN}_{source_entity_id}_alarm"
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Temperature Alarm binary sensor."""
-    data = hass.data[DOMAIN][entry.entry_id]
-    source_entity_id = data["source_entity_id"]
-    device_info = data.get("device_info")
-    mode = entry.data.get(CONF_MODE, MODE_MIN_MAX)
+    data: AlarmRuntimeData = hass.data[DOMAIN][entry.entry_id]
+    mode = entry.data.get(CONF_MODE, DEFAULT_MODE)
 
     async_add_entities([
         TemperatureAlarmBinarySensor(
             entry=entry,
-            source_entity_id=source_entity_id,
-            device_info=device_info,
+            source_entity_id=data.source_entity_id,
+            device_info=data.device_info,
             mode=mode,
             resolver=ThresholdResolver(hass, entry),
         )
@@ -76,7 +83,7 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
         self,
         entry: ConfigEntry,
         source_entity_id: str,
-        device_info: dict[str, Any] | None,
+        device_info: DeviceInfo | None,
         mode: str,
         resolver: ThresholdResolver,
     ) -> None:
@@ -105,11 +112,11 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
         self._delay_timer_cancel: CALLBACK_TYPE | None = None
 
         # Set unique ID
-        self._attr_unique_id = f"{DOMAIN}_{source_entity_id}_alarm"
+        self._attr_unique_id = alarm_unique_id(source_entity_id)
 
         # Device info - attach to source device if available
         if device_info:
-            self._attr_device_info = DeviceInfo(**device_info)
+            self._attr_device_info = device_info
 
     async def async_added_to_hass(self) -> None:
         """Set up state tracking when added to hass."""
@@ -225,9 +232,9 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
         # Add threshold values based on mode (as of the last evaluation)
         thresholds = self._last_thresholds
         if thresholds is not None:
-            if self._mode in (MODE_MIN_ONLY, MODE_MIN_MAX) and thresholds.min is not None:
+            if watches(self._mode, "min") and thresholds.min is not None:
                 attrs["min_threshold"] = thresholds.min
-            if self._mode in (MODE_MAX_ONLY, MODE_MIN_MAX) and thresholds.max is not None:
+            if watches(self._mode, "max") and thresholds.max is not None:
                 attrs["max_threshold"] = thresholds.max
 
         # Add delay info if enabled

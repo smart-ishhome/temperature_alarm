@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from homeassistant.components.number import (
     NumberDeviceClass,
@@ -14,20 +13,21 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.util.unit_conversion import TemperatureConverter
 
+from . import AlarmRuntimeData
 from .const import (
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
     DEFAULT_MAX_TEMP,
     DEFAULT_MIN_TEMP,
     DOMAIN,
+    KINDS,
     MAX_TEMP_LIMIT,
     MIN_TEMP_LIMIT,
     TEMP_STEP,
 )
 from .reading import unit_of
-from .thresholds import threshold_unique_id, wants_entity
+from .thresholds import is_temperature_unit, threshold_unique_id, wants_entity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,26 +38,24 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Temperature Alarm number entities."""
-    data = hass.data[DOMAIN][entry.entry_id]
-    source_entity_id = data["source_entity_id"]
-    device_info = data.get("device_info")
+    data: AlarmRuntimeData = hass.data[DOMAIN][entry.entry_id]
 
     initial_value = {
         "min": entry.data.get(CONF_MIN_TEMP, DEFAULT_MIN_TEMP),
         "max": entry.data.get(CONF_MAX_TEMP, DEFAULT_MAX_TEMP),
     }
-    unit = unit_of(hass.states.get(source_entity_id))
+    unit = unit_of(hass.states.get(data.source_entity_id))
 
     entities = [
         TemperatureThresholdNumber(
             entry=entry,
-            source_entity_id=source_entity_id,
-            device_info=device_info,
+            source_entity_id=data.source_entity_id,
+            device_info=data.device_info,
             threshold_type=kind,
             initial_value=initial_value[kind],
             unit=unit,
         )
-        for kind in ("min", "max")
+        for kind in KINDS
         if wants_entity(entry.data, kind)
     ]
 
@@ -79,7 +77,7 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
         self,
         entry: ConfigEntry,
         source_entity_id: str,
-        device_info: dict[str, Any] | None,
+        device_info: DeviceInfo | None,
         threshold_type: str,
         initial_value: float,
         unit: str | None,
@@ -94,9 +92,7 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
         # Announce as a temperature only when the source's unit really
         # is one; a unitless or non-temperature source gets no class.
         self._attr_device_class = (
-            NumberDeviceClass.TEMPERATURE
-            if unit in TemperatureConverter.VALID_UNITS
-            else None
+            NumberDeviceClass.TEMPERATURE if is_temperature_unit(unit) else None
         )
 
         _LOGGER.debug(
@@ -118,7 +114,7 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
         
         # Device info - attach to source device if available
         if device_info:
-            self._attr_device_info = DeviceInfo(**device_info)
+            self._attr_device_info = device_info
 
     async def async_added_to_hass(self) -> None:
         """Restore previous state when added to hass."""
@@ -165,8 +161,3 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
         )
         self._attr_native_value = value
         self.async_write_ha_state()
-
-    @property
-    def native_unit_of_measurement(self) -> str | None:
-        """Return the unit of measurement."""
-        return self._attr_native_unit_of_measurement

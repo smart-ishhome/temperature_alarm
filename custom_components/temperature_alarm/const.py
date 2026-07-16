@@ -18,8 +18,15 @@ CONF_MAX_TEMP = "max_temp"
 # and their values are compared raw.
 CONF_THRESHOLD_UNIT = "threshold_unit"
 
-# Monitoring modes - defined in evaluator.py (the domain core), re-exported here
-from .evaluator import MODE_MAX_ONLY, MODE_MIN_MAX, MODE_MIN_ONLY  # noqa: F401
+# Monitoring modes and the mode->sides query - defined in evaluator.py
+# (the domain core), re-exported here
+from .evaluator import (  # noqa: F401
+    KINDS,
+    MODE_MAX_ONLY,
+    MODE_MIN_MAX,
+    MODE_MIN_ONLY,
+    watches,
+)
 
 MODES = [MODE_MIN_ONLY, MODE_MAX_ONLY, MODE_MIN_MAX]
 
