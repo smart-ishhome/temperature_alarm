@@ -4,8 +4,6 @@ Covers the module's whole interface: which fields each Monitoring Mode
 requires, defaults threading (built-in vs entry data), and validation.
 Schema construction needs homeassistant importable but no running hass.
 """
-import voluptuous as vol
-
 from custom_components.temperature_alarm.const import (
     CONF_CREATE_MAX_ENTITY,
     CONF_CREATE_MIN_ENTITY,
@@ -30,23 +28,7 @@ from custom_components.temperature_alarm.settings import (
     validate,
 )
 
-
-def keys(schema: vol.Schema) -> set[str]:
-    return {str(key) for key in schema.schema}
-
-
-def default_of(schema: vol.Schema, key: str):
-    for marker in schema.schema:
-        if str(marker) == key:
-            return marker.default()
-    raise KeyError(key)
-
-
-def selector_config(schema: vol.Schema, key: str) -> dict:
-    for marker, sel in schema.schema.items():
-        if str(marker) == key:
-            return sel.config
-    raise KeyError(key)
+from common import default_of, keys, selector_config
 
 
 # which fields a Monitoring Mode requires

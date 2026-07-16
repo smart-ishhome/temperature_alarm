@@ -34,14 +34,7 @@ from custom_components.temperature_alarm.const import (
 from custom_components.temperature_alarm.binary_sensor import alarm_unique_id
 from custom_components.temperature_alarm.thresholds import threshold_unique_id
 
-SOURCE = "sensor.garage_temperature"
-
-BASE_DATA = {
-    CONF_SOURCE_ENTITY: SOURCE,
-    CONF_MODE: MODE_MIN_MAX,
-    CONF_MIN_TEMP: 5.0,
-    CONF_MAX_TEMP: 30.0,
-}
+from common import BASE_DATA, SOURCE
 
 DELAY_DATA = {
     **BASE_DATA,
