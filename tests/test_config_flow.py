@@ -22,19 +22,12 @@ from custom_components.temperature_alarm.const import (
     MODE_MIN_MAX,
 )
 
-SOURCE = "sensor.attic_temperature"
+from common import SOURCE, selector_config
 
 
 @pytest.fixture(autouse=True)
 def _custom_integrations(enable_custom_integrations):
     """The flow handler lookup needs the custom integration loadable."""
-
-
-def _entity_selector_config(result) -> dict:
-    for marker, sel in result["data_schema"].schema.items():
-        if str(marker) == CONF_SOURCE_ENTITY:
-            return sel.config
-    raise KeyError(CONF_SOURCE_ENTITY)
 
 
 async def _start(hass):
@@ -50,7 +43,10 @@ async def test_picker_defaults_to_temperature_class(hass):
     result = await _start(hass)
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
-    assert _entity_selector_config(result)["device_class"] == ["temperature"]
+    assert (
+        selector_config(result["data_schema"], CONF_SOURCE_ENTITY)["device_class"]
+        == ["temperature"]
+    )
 
 
 async def test_toggle_reshows_unfiltered_picker(hass):
@@ -60,7 +56,7 @@ async def test_toggle_reshows_unfiltered_picker(hass):
     )
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
-    config = _entity_selector_config(result)
+    config = selector_config(result["data_schema"], CONF_SOURCE_ENTITY)
     assert "device_class" not in config
     assert config["domain"] == ["sensor"]
 

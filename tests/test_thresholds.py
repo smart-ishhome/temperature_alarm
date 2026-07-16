@@ -11,7 +11,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.temperature_alarm.const import (
     CONF_CREATE_MAX_ENTITY,
     CONF_CREATE_MIN_ENTITY,
-    CONF_MAX_TEMP,
     CONF_MIN_TEMP,
     CONF_MODE,
     CONF_SOURCE_ENTITY,
@@ -28,18 +27,7 @@ from custom_components.temperature_alarm.thresholds import (
     wants_entity,
 )
 
-SOURCE = "sensor.garage_temperature"
-
-
-def make_entry(**overrides):
-    data = {
-        CONF_SOURCE_ENTITY: SOURCE,
-        CONF_MODE: MODE_MIN_MAX,
-        CONF_MIN_TEMP: 5.0,
-        CONF_MAX_TEMP: 30.0,
-    }
-    data.update(overrides)
-    return MockConfigEntry(domain=DOMAIN, data=data)
+from common import SOURCE, make_entry
 
 
 def register_threshold_entity(hass, kind):

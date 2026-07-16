@@ -68,7 +68,7 @@ async def async_setup_entry(
             mode=mode,
             resolver=ThresholdResolver(hass, entry),
         )
-    ], update_before_add=True)
+    ])
 
 
 class TemperatureAlarmBinarySensor(BinarySensorEntity):
@@ -110,12 +110,8 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
         self._delay_timer_cancel: CALLBACK_TYPE | None = None
 
         # The exposed attributes are one coherent snapshot assembled by
-        # _refresh at evaluation time; before the first evaluation only
-        # the static base is known.
-        self._attrs: dict[str, Any] = {
-            "source_entity": source_entity_id,
-            "mode": mode,
-        }
+        # _snapshot at evaluation time; empty until the first evaluation.
+        self._attrs: dict[str, Any] = {}
 
         # Set unique ID
         self._attr_unique_id = alarm_unique_id(source_entity_id)
