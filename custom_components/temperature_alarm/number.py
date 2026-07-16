@@ -18,8 +18,7 @@ from . import AlarmRuntimeData
 from .const import (
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
-    DEFAULT_MAX_TEMP,
-    DEFAULT_MIN_TEMP,
+    CONF_THRESHOLD_UNIT,
     DOMAIN,
     KINDS,
     MAX_TEMP_LIMIT,
@@ -27,7 +26,12 @@ from .const import (
     TEMP_STEP,
 )
 from .reading import unit_of
-from .thresholds import is_temperature_unit, threshold_unique_id, wants_entity
+from .thresholds import (
+    convert_threshold,
+    is_temperature_unit,
+    threshold_unique_id,
+    wants_entity,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,11 +44,16 @@ async def async_setup_entry(
     """Set up Temperature Alarm number entities."""
     data: AlarmRuntimeData = hass.data[DOMAIN][entry.entry_id]
 
-    initial_value = {
-        "min": entry.data.get(CONF_MIN_TEMP, DEFAULT_MIN_TEMP),
-        "max": entry.data.get(CONF_MAX_TEMP, DEFAULT_MAX_TEMP),
-    }
     unit = unit_of(hass.states.get(data.source_entity_id))
+
+    # Config values remember the unit they were saved in; reconcile
+    # them to the unit the entity announces today. A side without a
+    # config value seeds nothing - the entity starts unknown.
+    saved_unit = entry.data.get(CONF_THRESHOLD_UNIT)
+    initial_value = {
+        "min": convert_threshold(entry.data.get(CONF_MIN_TEMP), saved_unit, unit),
+        "max": convert_threshold(entry.data.get(CONF_MAX_TEMP), saved_unit, unit),
+    }
 
     entities = [
         TemperatureThresholdNumber(
@@ -79,7 +88,7 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
         source_entity_id: str,
         device_info: DeviceInfo | None,
         threshold_type: str,
-        initial_value: float,
+        initial_value: float | None,
         unit: str | None,
     ) -> None:
         """Initialize the number entity."""
@@ -96,7 +105,7 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
         )
 
         _LOGGER.debug(
-            "Initializing %s threshold entity with value %.2f %s",
+            "Initializing %s threshold entity with value %s %s",
             threshold_type,
             initial_value,
             unit,
@@ -121,19 +130,24 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
         await super().async_added_to_hass()
         
         _LOGGER.debug(
-            "%s threshold entity added - initial_value=%.2f, current native_value=%.2f, unit=%s",
+            "%s threshold entity added - initial_value=%s, current native_value=%s, unit=%s",
             self._threshold_type,
             self._initial_value,
-            self._attr_native_value if self._attr_native_value is not None else 0,
+            self._attr_native_value,
             self._attr_native_unit_of_measurement,
         )
         
-        # Try to restore previous value
+        # Try to restore previous value. It comes back with the unit it
+        # was saved under; reconcile it to the unit announced today.
         last_number_data = await self.async_get_last_number_data()
         if last_number_data and last_number_data.native_value is not None:
-            self._attr_native_value = last_number_data.native_value
+            self._attr_native_value = convert_threshold(
+                last_number_data.native_value,
+                last_number_data.native_unit_of_measurement,
+                self._attr_native_unit_of_measurement,
+            )
             _LOGGER.debug(
-                "Restored %s threshold to %.2f from previous state (unit: %s)",
+                "Restored %s threshold to %s from previous state (unit: %s)",
                 self._threshold_type,
                 self._attr_native_value,
                 self._attr_native_unit_of_measurement,
@@ -142,7 +156,7 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
             # Use initial value from config
             self._attr_native_value = self._initial_value
             _LOGGER.debug(
-                "Using initial %s threshold value %.2f from config (unit: %s)",
+                "Using initial %s threshold value %s from config (unit: %s)",
                 self._threshold_type,
                 self._initial_value,
                 self._attr_native_unit_of_measurement,
