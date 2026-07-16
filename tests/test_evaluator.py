@@ -13,6 +13,7 @@ from evaluator import (
     AlarmEvaluator,
     Thresholds,
     Trigger,
+    watches,
 )
 
 
@@ -242,3 +243,19 @@ class TestDelayRecovery:
         v = ev.evaluate(20.0, BOTH, now=10)
         assert v.is_on is False
         assert v.pending is False
+
+
+class TestWatches:
+    """The mode->sides fact: every other module derives from this table."""
+
+    def test_full_matrix(self):
+        assert watches(MODE_MIN_ONLY, "min") is True
+        assert watches(MODE_MIN_ONLY, "max") is False
+        assert watches(MODE_MAX_ONLY, "min") is False
+        assert watches(MODE_MAX_ONLY, "max") is True
+        assert watches(MODE_MIN_MAX, "min") is True
+        assert watches(MODE_MIN_MAX, "max") is True
+
+    def test_unknown_mode_watches_nothing(self):
+        assert watches("bogus", "min") is False
+        assert watches("bogus", "max") is False

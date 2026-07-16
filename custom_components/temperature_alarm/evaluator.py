@@ -17,6 +17,26 @@ MODE_MIN_ONLY = "min_only"
 MODE_MAX_ONLY = "max_only"
 MODE_MIN_MAX = "min_max"
 
+# The two sides of the range a Monitoring Mode can watch.
+KINDS = ("min", "max")
+
+_SIDES = {
+    MODE_MIN_ONLY: ("min",),
+    MODE_MAX_ONLY: ("max",),
+    MODE_MIN_MAX: ("min", "max"),
+}
+
+
+def watches(mode: str, kind: str) -> bool:
+    """Whether this Monitoring Mode watches the given side of the range.
+
+    The single owner of the mode->sides fact: which Thresholds a mode
+    compares against, which Threshold Entities it wants, which fields
+    its settings require, and which attributes the Alarm exposes all
+    derive from this answer. An unknown mode watches nothing.
+    """
+    return kind in _SIDES.get(mode, ())
+
 
 class Trigger(Enum):
     """What caused an evaluation.
@@ -127,16 +147,18 @@ class AlarmEvaluator:
         return self._verdict(is_on=condition)
 
     def _condition_met(self, reading: float, thresholds: Thresholds) -> bool:
-        """Check the reading against the Thresholds for this mode."""
-        if self._mode == MODE_MIN_ONLY:
-            return thresholds.min is not None and reading < thresholds.min
-        if self._mode == MODE_MAX_ONLY:
-            return thresholds.max is not None and reading > thresholds.max
-        if self._mode == MODE_MIN_MAX:
-            if thresholds.min is not None and reading < thresholds.min:
-                return True
-            return thresholds.max is not None and reading > thresholds.max
-        return False
+        """Check the reading against the Thresholds this mode watches."""
+        if (
+            watches(self._mode, "min")
+            and thresholds.min is not None
+            and reading < thresholds.min
+        ):
+            return True
+        return (
+            watches(self._mode, "max")
+            and thresholds.max is not None
+            and reading > thresholds.max
+        )
 
     def _apply_delay(self, now: float, trigger: Trigger) -> Verdict:
         """Run the Trigger Delay state machine for a met condition.

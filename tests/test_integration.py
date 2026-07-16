@@ -10,6 +10,7 @@ from datetime import timedelta
 
 import pytest
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -29,6 +30,7 @@ from custom_components.temperature_alarm.const import (
     MODE_MAX_ONLY,
     MODE_MIN_MAX,
 )
+from custom_components.temperature_alarm.binary_sensor import alarm_unique_id
 from custom_components.temperature_alarm.thresholds import threshold_unique_id
 
 SOURCE = "sensor.garage_temperature"
@@ -57,7 +59,7 @@ async def _setup_entry(hass, data):
 
     registry = er.async_get(hass)
     alarm_id = registry.async_get_entity_id(
-        "binary_sensor", DOMAIN, f"{DOMAIN}_{SOURCE}_alarm"
+        "binary_sensor", DOMAIN, alarm_unique_id(SOURCE)
     )
     assert alarm_id
     return entry, alarm_id
@@ -137,7 +139,7 @@ async def test_classless_unitless_source_works(hass, enable_custom_integrations)
 
     registry = er.async_get(hass)
     alarm_id = registry.async_get_entity_id(
-        "binary_sensor", DOMAIN, f"{DOMAIN}_{source}_alarm"
+        "binary_sensor", DOMAIN, alarm_unique_id(source)
     )
     max_threshold_id = registry.async_get_entity_id(
         "number", DOMAIN, threshold_unique_id(source, "max")
@@ -193,7 +195,7 @@ async def _alarm_state(hass, data):
 
     registry = er.async_get(hass)
     alarm_id = registry.async_get_entity_id(
-        "binary_sensor", DOMAIN, f"{DOMAIN}_{SOURCE}_alarm"
+        "binary_sensor", DOMAIN, alarm_unique_id(SOURCE)
     )
     return hass.states.get(alarm_id)
 
@@ -358,3 +360,36 @@ async def test_adjusted_threshold_survives_reload(hass, enable_custom_integratio
     await hass.async_block_till_done()
     assert hass.states.get(max_threshold_id).state == "15.0"
     assert hass.states.get(alarm_id).state == "on"
+
+
+# Device attachment: entities land on the Source Sensor's device
+
+
+async def test_entities_attach_to_source_device(hass, enable_custom_integrations):
+    # A Source Sensor registered against a device
+    source_config_entry = MockConfigEntry(domain="test")
+    source_config_entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=source_config_entry.entry_id,
+        identifiers={("test", "garage-sensor-1")},
+    )
+    registry = er.async_get(hass)
+    source = registry.async_get_or_create(
+        "sensor",
+        "test",
+        "garage-temp",
+        device_id=device.id,
+        suggested_object_id="garage_temperature",
+    )
+    assert source.entity_id == SOURCE
+    hass.states.async_set(SOURCE, "20.0", {"unit_of_measurement": "°C"})
+
+    _, alarm_id = await _setup_entry(hass, BASE_DATA)
+
+    # The Alarm and both Threshold Entities attach to the same device
+    assert registry.async_get(alarm_id).device_id == device.id
+    for kind in ("min", "max"):
+        threshold_id = registry.async_get_entity_id(
+            "number", DOMAIN, threshold_unique_id(SOURCE, kind)
+        )
+        assert registry.async_get(threshold_id).device_id == device.id

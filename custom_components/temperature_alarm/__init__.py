@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.entity import DeviceInfo
 
 from .const import CONF_SOURCE_ENTITY, DOMAIN, PLATFORMS
 from .thresholds import async_remove_orphaned_entities
@@ -15,35 +16,37 @@ from .thresholds import async_remove_orphaned_entities
 _LOGGER = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class AlarmRuntimeData:
+    """What the composition root resolves for the platforms.
+
+    device_info is ready-made: the Source Sensor's device attachment,
+    or None when the source has no device. Stored in hass.data (the
+    test harness's ConfigEntry predates entry.runtime_data).
+    """
+
+    source_entity_id: str
+    device_info: DeviceInfo | None
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Temperature Alarm from a config entry."""
     hass.data.setdefault(DOMAIN, {})
-    
+
     source_entity_id = entry.data[CONF_SOURCE_ENTITY]
-    
-    # Get device info from source entity
-    entity_registry = er.async_get(hass)
-    device_registry = dr.async_get(hass)
-    
-    device_id = None
+
+    # Attach to the Source Sensor's device if it has one
     device_info = None
-    
-    source_entry = entity_registry.async_get(source_entity_id)
+    source_entry = er.async_get(hass).async_get(source_entity_id)
     if source_entry and source_entry.device_id:
-        device_id = source_entry.device_id
-        device = device_registry.async_get(device_id)
+        device = dr.async_get(hass).async_get(source_entry.device_id)
         if device:
-            # Get the primary identifier for the device
-            device_info = {
-                "identifiers": device.identifiers,
-            }
-    
-    # Store data for platforms
-    hass.data[DOMAIN][entry.entry_id] = {
-        "source_entity_id": source_entity_id,
-        "device_id": device_id,
-        "device_info": device_info,
-    }
+            device_info = DeviceInfo(identifiers=device.identifiers)
+
+    hass.data[DOMAIN][entry.entry_id] = AlarmRuntimeData(
+        source_entity_id=source_entity_id,
+        device_info=device_info,
+    )
     
     # Threshold Entities must be registered before the Alarm looks them
     # up to subscribe, so the number platform is fully set up first.
