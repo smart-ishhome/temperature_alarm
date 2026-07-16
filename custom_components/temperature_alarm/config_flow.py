@@ -19,7 +19,13 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 
-from .const import CONF_MODE, CONF_SHOW_ALL_SENSORS, CONF_SOURCE_ENTITY, DOMAIN
+from .const import (
+    CONF_MODE,
+    CONF_SHOW_ALL_SENSORS,
+    CONF_SOURCE_ENTITY,
+    CONF_THRESHOLD_UNIT,
+    DOMAIN,
+)
 from .reading import reading_of, unit_of
 from .settings import delay_schema, mode_schema, thresholds_schema, validate
 
@@ -55,15 +61,20 @@ class AlarmSettingsSteps:
         """Handle the threshold configuration step."""
         errors: dict[str, str] = {}
 
+        # Read the unit live; a Source Sensor gone unavailable just
+        # renders the fields unitless (and stores no unit).
+        unit = unit_of(self.hass.states.get(self._data[CONF_SOURCE_ENTITY]))
+
         if user_input is not None:
             errors = validate({**self._data, **user_input})
             if not errors:
                 self._data.update(user_input)
+                # Record the unit the values were entered in, so
+                # Threshold Resolution can convert if the source's
+                # unit changes later.
+                self._data[CONF_THRESHOLD_UNIT] = unit
                 return await self.async_step_delay()
 
-        # Read the unit live; a Source Sensor gone unavailable just
-        # renders the fields unitless.
-        unit = unit_of(self.hass.states.get(self._data[CONF_SOURCE_ENTITY]))
         return self.async_show_form(
             step_id="thresholds",
             data_schema=thresholds_schema(self._data[CONF_MODE], self._data, unit),

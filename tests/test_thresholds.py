@@ -1,9 +1,10 @@
 """Tests for Threshold Resolution (thresholds.py).
 
 Covers the module's whole interface: which Threshold Entities should
-exist, value precedence (Threshold Entity first, config fallback), and
-change notification.
+exist, value precedence (Threshold Entity first, config fallback),
+unit reconciliation, and change notification.
 """
+import pytest
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -14,6 +15,7 @@ from custom_components.temperature_alarm.const import (
     CONF_MIN_TEMP,
     CONF_MODE,
     CONF_SOURCE_ENTITY,
+    CONF_THRESHOLD_UNIT,
     DOMAIN,
     MODE_MAX_ONLY,
     MODE_MIN_ONLY,
@@ -127,6 +129,57 @@ async def test_absent_config_side_is_none(hass):
     )
     resolver = ThresholdResolver(hass, entry)
     assert resolver.current().max is None
+
+
+# current() — unit reconciliation: Thresholds arrive in the Source
+# Sensor's unit; anything not a known temperature unit compares raw
+
+
+async def test_entity_value_converted_to_source_unit(hass):
+    hass.states.async_set(SOURCE, "20.0", {"unit_of_measurement": "°C"})
+    entity_id = register_threshold_entity(hass, "min")
+    hass.states.async_set(entity_id, "50.0", {"unit_of_measurement": "°F"})
+    resolver = ThresholdResolver(hass, make_entry())
+    assert resolver.current().min == pytest.approx(10.0)  # 50 °F in °C
+
+
+async def test_matching_units_pass_through(hass):
+    hass.states.async_set(SOURCE, "20.0", {"unit_of_measurement": "°C"})
+    entity_id = register_threshold_entity(hass, "min")
+    hass.states.async_set(entity_id, "7.5", {"unit_of_measurement": "°C"})
+    resolver = ThresholdResolver(hass, make_entry())
+    assert resolver.current().min == 7.5
+
+
+async def test_unitless_source_compares_raw(hass):
+    hass.states.async_set(SOURCE, "42.0")
+    entity_id = register_threshold_entity(hass, "min")
+    hass.states.async_set(entity_id, "50.0", {"unit_of_measurement": "°F"})
+    resolver = ThresholdResolver(hass, make_entry())
+    assert resolver.current().min == 50.0
+
+
+async def test_non_temperature_unit_compares_raw(hass):
+    hass.states.async_set(SOURCE, "400.0", {"unit_of_measurement": "ppm"})
+    entity_id = register_threshold_entity(hass, "min")
+    hass.states.async_set(entity_id, "300.0", {"unit_of_measurement": "°C"})
+    resolver = ThresholdResolver(hass, make_entry())
+    assert resolver.current().min == 300.0
+
+
+async def test_config_fallback_converted_from_stored_unit(hass):
+    hass.states.async_set(SOURCE, "70.0", {"unit_of_measurement": "°F"})
+    resolver = ThresholdResolver(hass, make_entry(**{CONF_THRESHOLD_UNIT: "°C"}))
+    thresholds = resolver.current()
+    assert thresholds.min == pytest.approx(41.0)  # 5 °C in °F
+    assert thresholds.max == pytest.approx(86.0)  # 30 °C in °F
+
+
+async def test_config_fallback_without_stored_unit_compares_raw(hass):
+    # Entries from before CONF_THRESHOLD_UNIT existed have no stored unit
+    hass.states.async_set(SOURCE, "70.0", {"unit_of_measurement": "°F"})
+    resolver = ThresholdResolver(hass, make_entry())
+    assert resolver.current().min == 5.0
 
 
 # async_subscribe — change notification
