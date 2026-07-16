@@ -1,11 +1,11 @@
 {
   "domain": "temperature_alarm",
   "name": "Temperature Alarm",
-  "codeowners": [],
+  "codeowners": ["@smart-ishhome"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/",
+  "documentation": "https://github.com/smart-ishhome/temperature_alarm",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/",
-  "version": "0.9.1"
+  "issue_tracker": "https://github.com/smart-ishhome/temperature_alarm/issues",
+  "version": "1.0.0"
 }

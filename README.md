@@ -15,6 +15,9 @@ A Home Assistant custom integration that monitors temperature sensors and trigge
   - **Min/Max Range**: Alert when temperature is outside the defined range
 - **Device Integration**: Entities attach to the source temperature sensor's device
 - **Adjustable Thresholds**: Real-time threshold adjustment via number entities
+- **Choosable Alarm Class**: Present the alarm as safety, problem, heat, or cold
+- **Any Numeric Sensor**: A "show all sensors" toggle lets you pick classless sensors (e.g. template sensors) as the source
+- **Unit Aware**: Thresholds follow the source sensor's unit — saved and restored values convert automatically between °C and °F
 - **Trigger Delay**: Optional delay before triggering alarm to avoid false positives
 - **Options Flow**: Change monitoring mode and thresholds after setup
 - **Multi-language Support**: English, French, German, and Spanish translations
@@ -22,13 +25,12 @@ A Home Assistant custom integration that monitors temperature sensors and trigge
 ## Installation
 ### HACS (Recommended)
 
-*This custom integration is still not available by default in HACS, please add it as a custom repository*
-
-1. In HACS, in the top right corner go to **Overflow Menu** → **Custom repositories**
-2. For **repository** fill in `https://github.com/smart-ishhome/temperature_alarm` for type select **integration**. Click on **Add**.
-2. Close the custom repority window
-3. In HACS Search for **Temperature Alarm**. Then in the bottom right corner click **Download** to install.
-4. Restart Home Assistant
+1. In HACS, search for **Temperature Alarm**
+   <br>
+   <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=smart-ishhome&repository=temperature_alarm&category=integration" target="_blank"><img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Open your Home Assistant instance and open the repository inside HACS."></a>
+   <br>
+2. Click **Download** in the bottom right corner to install
+3. Restart Home Assistant
 
 ### Manual Installation 
 
@@ -259,6 +261,15 @@ This project is licensed under the MIT License.
 
 - **0.9.2** - 2026.3 icon update
   - Added icons to custom_components/temperature_alarm/brand
+
+- **1.0.0** - Stable release
+  - Choosable alarm device class (safety, problem, heat, cold)
+  - "Show all sensors" toggle: classless/template sensors can be sources
+  - Full unit handling: thresholds follow the source sensor's unit, convert between °C/°F, and restore correctly after a unit change
+  - Fixed: changing options no longer breaks the alarm until restart
+  - Fixed: a missing min/max no longer creates a phantom threshold
+  - Fixed: trigger delay counts only source sensor updates; pending state clears when the alarm triggers
+  - Internal: alarm logic extracted into a standalone tested core (102 tests)
 ---
 
 **Need Help?** Check the [troubleshooting section](#troubleshooting) or enable debug logging to diagnose issues.
