@@ -98,7 +98,6 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
 
         # Threshold Resolution owns where Thresholds come from
         self._resolver = resolver
-        self._last_thresholds: Thresholds | None = None
 
         # All alarm semantics live in the evaluator; it also owns the
         # delay configuration (read back for extra_state_attributes)
@@ -108,8 +107,15 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
             delay_time=entry.data.get(CONF_DELAY_TIME, DEFAULT_DELAY_TIME),
             delay_updates=entry.data.get(CONF_DELAY_UPDATES, DEFAULT_DELAY_UPDATES),
         )
-        self._last_verdict: Verdict | None = None
         self._delay_timer_cancel: CALLBACK_TYPE | None = None
+
+        # The exposed attributes are one coherent snapshot assembled by
+        # _refresh at evaluation time; before the first evaluation only
+        # the static base is known.
+        self._attrs: dict[str, Any] = {
+            "source_entity": source_entity_id,
+            "mode": mode,
+        }
 
         # Set unique ID
         self._attr_unique_id = alarm_unique_id(source_entity_id)
@@ -161,14 +167,12 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
     @callback
     def _refresh(self, trigger: Trigger) -> None:
         """Evaluate the alarm and apply the Verdict to HA state."""
-        reading = self._current_reading()
+        reading = reading_of(self.hass.states.get(self._source_entity_id))
         thresholds = self._resolver.current()
-        self._last_thresholds = thresholds
 
         verdict = self._evaluator.evaluate(
             reading, thresholds, time.monotonic(), trigger
         )
-        self._last_verdict = verdict
 
         _LOGGER.debug(
             "Temperature Alarm update: reading=%s, thresholds=%s, mode=%s -> %s",
@@ -180,6 +184,7 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
 
         self._attr_available = verdict.available
         self._attr_is_on = verdict.is_on
+        self._attrs = self._snapshot(reading, thresholds, verdict)
 
         # Timer management: a Verdict without pending obsoletes any
         # scheduled re-check; recheck_in asks for a (re)scheduled one.
@@ -190,9 +195,28 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
 
         self.async_write_ha_state()
 
-    def _current_reading(self) -> float | None:
-        """Read the source temperature, or None if unavailable/non-numeric."""
-        return reading_of(self.hass.states.get(self._source_entity_id))
+    def _snapshot(
+        self, reading: float | None, thresholds: Thresholds, verdict: Verdict
+    ) -> dict[str, Any]:
+        """Assemble the attributes this evaluation exposes."""
+        attrs: dict[str, Any] = {
+            "source_entity": self._source_entity_id,
+            "mode": self._mode,
+        }
+        if reading is not None:
+            attrs["current_temperature"] = reading
+        if watches(self._mode, "min") and thresholds.min is not None:
+            attrs["min_threshold"] = thresholds.min
+        if watches(self._mode, "max") and thresholds.max is not None:
+            attrs["max_threshold"] = thresholds.max
+        if self._evaluator.delay_enabled:
+            attrs["delay_enabled"] = True
+            attrs["delay_time"] = self._evaluator.delay_time
+            attrs["delay_updates"] = self._evaluator.delay_updates
+            if verdict.pending:
+                attrs["alarm_pending"] = True
+                attrs["alarm_pending_updates"] = verdict.pending_updates
+        return attrs
 
     @callback
     def _cancel_delay_timer(self) -> None:
@@ -217,33 +241,5 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return extra state attributes."""
-        attrs: dict[str, Any] = {
-            "source_entity": self._source_entity_id,
-            "mode": self._mode,
-        }
-
-        # Add current temperature
-        if self.hass:
-            reading = reading_of(self.hass.states.get(self._source_entity_id))
-            if reading is not None:
-                attrs["current_temperature"] = reading
-
-        # Add threshold values based on mode (as of the last evaluation)
-        thresholds = self._last_thresholds
-        if thresholds is not None:
-            if watches(self._mode, "min") and thresholds.min is not None:
-                attrs["min_threshold"] = thresholds.min
-            if watches(self._mode, "max") and thresholds.max is not None:
-                attrs["max_threshold"] = thresholds.max
-
-        # Add delay info if enabled
-        if self._evaluator.delay_enabled:
-            attrs["delay_enabled"] = True
-            attrs["delay_time"] = self._evaluator.delay_time
-            attrs["delay_updates"] = self._evaluator.delay_updates
-            if self._last_verdict is not None and self._last_verdict.pending:
-                attrs["alarm_pending"] = True
-                attrs["alarm_pending_updates"] = self._last_verdict.pending_updates
-
-        return attrs
+        """The snapshot assembled by the last evaluation."""
+        return self._attrs

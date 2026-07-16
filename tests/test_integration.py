@@ -26,6 +26,7 @@ from custom_components.temperature_alarm.const import (
     CONF_MIN_TEMP,
     CONF_MODE,
     CONF_SOURCE_ENTITY,
+    CONF_THRESHOLD_UNIT,
     DOMAIN,
     MODE_MAX_ONLY,
     MODE_MIN_MAX,
@@ -360,6 +361,105 @@ async def test_adjusted_threshold_survives_reload(hass, enable_custom_integratio
     await hass.async_block_till_done()
     assert hass.states.get(max_threshold_id).state == "15.0"
     assert hass.states.get(alarm_id).state == "on"
+
+
+async def test_absent_config_side_seeds_no_threshold(
+    hass, enable_custom_integrations
+):
+    """A Threshold Entity with no config value starts unknown: its side
+    has no Threshold until the user types one - no phantom default."""
+    hass.states.async_set(SOURCE, "20.0", {"unit_of_measurement": "°C"})
+    _, alarm_id = await _setup_entry(
+        hass,
+        {CONF_SOURCE_ENTITY: SOURCE, CONF_MODE: MODE_MIN_MAX, CONF_MAX_TEMP: 30.0},
+    )
+
+    registry = er.async_get(hass)
+    min_threshold_id = registry.async_get_entity_id(
+        "number", DOMAIN, threshold_unique_id(SOURCE, "min")
+    )
+    assert hass.states.get(min_threshold_id).state == "unknown"
+
+    # 20 °C with no min Threshold -> off (a phantom 50 default would alarm)
+    state = hass.states.get(alarm_id)
+    assert state.state == "off"
+    assert "min_threshold" not in state.attributes
+
+    # Typing a value activates the side
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": min_threshold_id, "value": 25.0},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    assert hass.states.get(alarm_id).state == "on"
+
+
+async def test_restored_threshold_converts_from_stored_unit(
+    hass, enable_custom_integrations
+):
+    """A restored Threshold is reconciled from the unit it was saved under.
+
+    25 °C stored before a source unit flip must come back as 77 °F,
+    not be re-read as 25 °F.
+    """
+    hass.states.async_set(SOURCE, "20.0", {"unit_of_measurement": "°C"})
+    entry, alarm_id = await _setup_entry(
+        hass, {**BASE_DATA, CONF_THRESHOLD_UNIT: "°C"}
+    )
+
+    registry = er.async_get(hass)
+    max_threshold_id = registry.async_get_entity_id(
+        "number", DOMAIN, threshold_unique_id(SOURCE, "max")
+    )
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": max_threshold_id, "value": 25.0},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # The source flips to °F, then the entry reloads (e.g. a restart)
+    hass.states.async_set(SOURCE, "70.0", {"unit_of_measurement": "°F"})
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    # 25 °C restores as 77 °F; 70 °F (21.1 °C) stays below it -> off.
+    # An unconverted restore would read 25 °F and wrongly alarm.
+    state = hass.states.get(alarm_id)
+    assert state.state == "off"
+    assert state.attributes["max_threshold"] == pytest.approx(77.0)
+    # HA renders temperature numbers in the system unit (°C here), so
+    # the user still sees the 25 °C they set.
+    assert float(hass.states.get(max_threshold_id).state) == pytest.approx(25.0)
+
+
+async def test_seeded_threshold_converts_from_saved_unit(
+    hass, enable_custom_integrations
+):
+    """A fresh Threshold Entity seeds its config value reconciled to the
+    source's current unit (values saved under °C, source now °F)."""
+    hass.states.async_set(SOURCE, "70.0", {"unit_of_measurement": "°F"})
+    _, alarm_id = await _setup_entry(
+        hass, {**BASE_DATA, CONF_THRESHOLD_UNIT: "°C"}
+    )
+
+    # Seeds converted to °F: 5 °C -> 41, 30 °C -> 86. An unconverted
+    # seed would put max at 30 °F and wrongly alarm on 70 °F.
+    state = hass.states.get(alarm_id)
+    assert state.state == "off"
+    assert state.attributes["min_threshold"] == pytest.approx(41.0)
+    assert state.attributes["max_threshold"] == pytest.approx(86.0)
+
+    # HA renders temperature numbers in the system unit (°C here), so
+    # the user still sees the 5 °C they configured.
+    registry = er.async_get(hass)
+    min_threshold_id = registry.async_get_entity_id(
+        "number", DOMAIN, threshold_unique_id(SOURCE, "min")
+    )
+    assert float(hass.states.get(min_threshold_id).state) == pytest.approx(5.0)
 
 
 # Device attachment: entities land on the Source Sensor's device

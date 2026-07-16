@@ -43,15 +43,19 @@ def is_temperature_unit(unit: str | None) -> bool:
     return unit in TemperatureConverter.VALID_UNITS
 
 
-def _convert(value: float, from_unit: str | None, to_unit: str | None) -> float:
+def convert_threshold(
+    value: float | None, from_unit: str | None, to_unit: str | None
+) -> float | None:
     """Convert a Threshold value between temperature units.
 
-    Conversion happens only when both units are known temperature units
+    The single unit-reconciliation rule: an absent value stays absent;
+    conversion happens only when both units are known temperature units
     and differ; any absent or non-temperature unit passes the value
     through raw, so unitless and non-temperature sources keep working.
     """
     if (
-        from_unit == to_unit
+        value is None
+        or from_unit == to_unit
         or not is_temperature_unit(from_unit)
         or not is_temperature_unit(to_unit)
     ):
@@ -146,16 +150,15 @@ class ThresholdResolver:
             state = self._hass.states.get(entity_id)
             reading = reading_of(state)
             if reading is not None:
-                return _convert(reading, unit_of(state), target_unit)
+                return convert_threshold(reading, unit_of(state), target_unit)
             if state is not None:
                 _LOGGER.debug(
                     "No Reading from %s Threshold Entity (state: %r), using config",
                     kind,
                     state.state,
                 )
-        value = self._entry.data.get(_CONFIG_KEY[kind])
-        if value is None:
-            return None
-        return _convert(
-            value, self._entry.data.get(CONF_THRESHOLD_UNIT), target_unit
+        return convert_threshold(
+            self._entry.data.get(_CONFIG_KEY[kind]),
+            self._entry.data.get(CONF_THRESHOLD_UNIT),
+            target_unit,
         )
