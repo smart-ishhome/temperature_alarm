@@ -95,86 +95,150 @@ The binary sensor provides additional attributes:
 - `alarm_pending`: Whether alarm condition exists but hasn't triggered yet (if delay active)
 - `alarm_pending_updates`: Number of updates in pending state (if delay active)
 
-## Usage Examples
+## Examples
 
 ### Home Heating Alert
-Monitor your living room temperature and get alerted when it drops below 68°F:
+
+Monitor your living room temperature and turn on the heater when it drops below 68°F:
+
 - **Mode**: Minimum Only
 - **Minimum Temperature**: 68°F
-- **Use Case**: Trigger heating system and trigger alarmo environmental action
-
-### Server Room Cooling
-Monitor server room temperature, shutdown server and alert when it gets too hot:
-- **Mode**: Maximum Only  
-- **Maximum Temperature**: 80°F
-- **Use Case**: Shutdown server and trigger emergency alerts
-
-### Greenhouse Management
-Maintain optimal plant growing conditions:
-- **Mode**: Min/Max Range
-- **Minimum Temperature**: 65°F
-- **Maximum Temperature**: 85°F
-- **Use Case**: Control heating/cooling/fan systems automatically
-
-### Refrigerator Alert
-Monitor your refrigerator temperature and get alerted when it is above 45°F or below 32°F
-- **Mode**: Min/Max Range
-- **Minimum Temperature**: 32°F
-- **Maximum Temperature**: 45°F
-- **Trigger Delay**: 5 minutes (300 seconds) to avoid alerts during door opening
-- **Use Case**: Send notification to mobile device
-
-## Automation Examples
-
-### Send Notification When Temperature Alarm Triggers
-
-```yaml
-automation:
-  - alias: "Temperature Alarm Notification"
-    trigger:
-      platform: state
-      entity_id: binary_sensor.living_room_temperature_alarm
-      to: "on"
-    action:
-      - service: notify.mobile_app_your_phone
-        data:
-          title: "Temperature Alert"
-          message: "Living room temperature is {{ state_attr('binary_sensor.living_room_temperature_alarm', 'current_temperature') }}°F (outside safe range)"
-```
-
-### Turn On Heater When Too Cold
+- **Alarm Class**: Cold
 
 ```yaml
 automation:
   - alias: "Auto Heat When Cold"
-    trigger:
-      platform: state
-      entity_id: binary_sensor.bedroom_temperature_alarm
-      to: "on"
-    condition:
-      - condition: template
-        value_template: "{{ state_attr('binary_sensor.bedroom_temperature_alarm', 'mode') in ['min_only', 'min_max'] }}"
-      - condition: template
-        value_template: "{{ state_attr('binary_sensor.bedroom_temperature_alarm', 'current_temperature') < state_attr('binary_sensor.bedroom_temperature_alarm', 'min_threshold') }}"
-    action:
-      - service: switch.turn_on
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.living_room_temperature_alarm
+        to: "on"
+    actions:
+      - action: switch.turn_on
         target:
-          entity_id: switch.bedroom_heater
+          entity_id: switch.living_room_heater
 ```
 
-### Monitor Pending Alarm State
+### Server Room Cooling
+
+Monitor server room temperature and shut the hardware down before it overheats:
+
+- **Mode**: Maximum Only
+- **Maximum Temperature**: 80°F
+- **Alarm Class**: Heat
 
 ```yaml
 automation:
-  - alias: "Notify When Alarm Pending"
-    trigger:
-      platform: template
-      value_template: "{{ state_attr('binary_sensor.freezer_temperature_alarm', 'alarm_pending') == true }}"
-    action:
-      - service: notify.mobile_app_your_phone
+  - alias: "Server Room Emergency Shutdown"
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.server_room_temperature_alarm
+        to: "on"
+    actions:
+      - action: button.press
+        target:
+          entity_id: button.server_shutdown
+      - action: notify.mobile_app_your_phone
         data:
-          title: "Temperature Warning"
-          message: "Freezer temperature has been out of range for {{ state_attr('binary_sensor.freezer_temperature_alarm', 'alarm_pending_updates') }} updates"
+          title: "Server Room Overheating"
+          message: >-
+            Server room is
+            {{ state_attr('binary_sensor.server_room_temperature_alarm', 'current_temperature') }}°F —
+            shutdown initiated
+```
+
+### Greenhouse Management
+
+Maintain optimal plant growing conditions. In Min/Max Range mode a single alarm covers both
+breaches, so the automation compares the current temperature against the thresholds to decide
+whether to heat or to vent:
+
+- **Mode**: Min/Max Range
+- **Minimum Temperature**: 65°F
+- **Maximum Temperature**: 85°F
+- **Alarm Class**: Problem
+
+```yaml
+automation:
+  - alias: "Greenhouse Climate Control"
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.greenhouse_temperature_alarm
+        to: "on"
+    actions:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: >-
+                  {{ state_attr('binary_sensor.greenhouse_temperature_alarm', 'current_temperature')
+                     < state_attr('binary_sensor.greenhouse_temperature_alarm', 'min_threshold') }}
+            sequence:
+              - action: switch.turn_on
+                target:
+                  entity_id: switch.greenhouse_heater
+          - conditions:
+              - condition: template
+                value_template: >-
+                  {{ state_attr('binary_sensor.greenhouse_temperature_alarm', 'current_temperature')
+                     > state_attr('binary_sensor.greenhouse_temperature_alarm', 'max_threshold') }}
+            sequence:
+              - action: fan.turn_on
+                target:
+                  entity_id: fan.greenhouse_vent
+```
+
+### Refrigerator Alert
+
+Monitor your refrigerator and get a notification when it goes above 45°F or below 32°F. The
+trigger delay rides out the temperature swing from a door opening:
+
+- **Mode**: Min/Max Range
+- **Minimum Temperature**: 32°F
+- **Maximum Temperature**: 45°F
+- **Trigger Delay**: 5 minutes (300 seconds)
+- **Alarm Class**: Problem
+
+```yaml
+automation:
+  - alias: "Refrigerator Temperature Notification"
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.refrigerator_temperature_alarm
+        to: "on"
+    actions:
+      - action: notify.mobile_app_your_phone
+        data:
+          title: "Refrigerator Alert"
+          message: >-
+            Refrigerator is
+            {{ state_attr('binary_sensor.refrigerator_temperature_alarm', 'current_temperature') }}°F
+            (outside safe range)
+```
+
+### Freezer Early Warning
+
+Catch a freezer drifting warm before it becomes a loss. Unlike the examples above, this
+automation fires *during* the delay window on the `alarm_pending` attribute — you hear about it
+before the alarm itself trips:
+
+- **Mode**: Maximum Only
+- **Maximum Temperature**: 5°F
+- **Trigger Delay**: 10 minutes (600 seconds) or 10 updates
+- **Alarm Class**: Heat
+
+```yaml
+automation:
+  - alias: "Freezer Pending Warning"
+    triggers:
+      - trigger: template
+        value_template: >-
+          {{ state_attr('binary_sensor.freezer_temperature_alarm', 'alarm_pending') == true }}
+    actions:
+      - action: notify.mobile_app_your_phone
+        data:
+          title: "Freezer Warning"
+          message: >-
+            Freezer has been above its maximum for
+            {{ state_attr('binary_sensor.freezer_temperature_alarm', 'alarm_pending_updates') }} updates
 ```
 
 ## Troubleshooting
