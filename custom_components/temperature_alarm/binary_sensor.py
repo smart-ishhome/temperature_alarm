@@ -17,7 +17,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback, CALLBACK_TYPE
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.device_registry import AnyDeviceEntry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event, async_call_later
 
@@ -64,7 +64,7 @@ async def async_setup_entry(
         TemperatureAlarmBinarySensor(
             entry=entry,
             source_entity_id=data.source_entity_id,
-            device_info=data.device_info,
+            device=data.device,
             mode=mode,
             resolver=ThresholdResolver(hass, entry),
         )
@@ -83,7 +83,7 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
         self,
         entry: ConfigEntry,
         source_entity_id: str,
-        device_info: DeviceInfo | None,
+        device: AnyDeviceEntry | None,
         mode: str,
         resolver: ThresholdResolver,
     ) -> None:
@@ -116,9 +116,8 @@ class TemperatureAlarmBinarySensor(BinarySensorEntity):
         # Set unique ID
         self._attr_unique_id = alarm_unique_id(source_entity_id)
 
-        # Device info - attach to source device if available
-        if device_info:
-            self._attr_device_info = device_info
+        # Link to the Source Sensor's device without owning it
+        self.device_entry = device
 
     async def async_added_to_hass(self) -> None:
         """Set up state tracking when added to hass."""

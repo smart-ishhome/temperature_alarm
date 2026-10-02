@@ -1,4 +1,5 @@
-# ponytail: pinned to the last series supporting Python 3.10 (= HA 2023.7);
-# bump to a current version once the dev machine has Python 3.13+
-pytest-homeassistant-custom-component==0.13.45
+# Pinned to HA 2026.9.4 (needs Python 3.14+). Must stay on HA 2026.8 or
+# later: device attachment relies on single-config-entry devices and
+# async_remove_helper_devices, both new in 2026.8.
+pytest-homeassistant-custom-component==0.13.367
 tzdata  # zoneinfo database, needed on Windows

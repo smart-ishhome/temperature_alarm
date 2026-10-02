@@ -458,16 +458,18 @@ async def test_seeded_threshold_converts_from_saved_unit(
 # Device attachment: entities land on the Source Sensor's device
 
 
-async def test_entities_attach_to_source_device(hass, enable_custom_integrations):
-    # A Source Sensor registered against a device
+SOURCE_DEVICE_IDENTIFIERS = {("test", "garage-sensor-1")}
+
+
+def _source_on_device(hass):
+    """Register the Source Sensor against a device and return the device."""
     source_config_entry = MockConfigEntry(domain="test")
     source_config_entry.add_to_hass(hass)
     device = dr.async_get(hass).async_get_or_create(
         config_entry_id=source_config_entry.entry_id,
-        identifiers={("test", "garage-sensor-1")},
+        identifiers=SOURCE_DEVICE_IDENTIFIERS,
     )
-    registry = er.async_get(hass)
-    source = registry.async_get_or_create(
+    source = er.async_get(hass).async_get_or_create(
         "sensor",
         "test",
         "garage-temp",
@@ -476,13 +478,84 @@ async def test_entities_attach_to_source_device(hass, enable_custom_integrations
     )
     assert source.entity_id == SOURCE
     hass.states.async_set(SOURCE, "20.0", {"unit_of_measurement": "°C"})
+    return device
 
-    _, alarm_id = await _setup_entry(hass, BASE_DATA)
 
-    # The Alarm and both Threshold Entities attach to the same device
-    assert registry.async_get(alarm_id).device_id == device.id
-    for kind in ("min", "max"):
-        threshold_id = registry.async_get_entity_id(
-            "number", DOMAIN, threshold_unique_id(SOURCE, kind)
-        )
-        assert registry.async_get(threshold_id).device_id == device.id
+# (platform, unique_id) of the Alarm and both Threshold Entities
+ALARM_ENTITIES = [
+    ("binary_sensor", alarm_unique_id(SOURCE)),
+    ("number", threshold_unique_id(SOURCE, "min")),
+    ("number", threshold_unique_id(SOURCE, "max")),
+]
+
+
+def _alarm_entity_ids(hass):
+    """Entity IDs of the Alarm and both Threshold Entities."""
+    registry = er.async_get(hass)
+    return [
+        registry.async_get_entity_id(platform, DOMAIN, unique_id)
+        for platform, unique_id in ALARM_ENTITIES
+    ]
+
+
+def _assert_linked_not_owned(hass, entry, device_id):
+    """All alarm entities sit on device_id; the alarm owns no device."""
+    registry = er.async_get(hass)
+    for entity_id in _alarm_entity_ids(hass):
+        assert registry.async_get(entity_id).device_id == device_id
+    assert dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id) == []
+
+
+async def test_entities_attach_to_source_device(hass, enable_custom_integrations):
+    device = _source_on_device(hass)
+
+    entry, _ = await _setup_entry(hass, BASE_DATA)
+
+    _assert_linked_not_owned(hass, entry, device.id)
+
+
+async def test_alarm_owned_device_is_cleaned_up(hass, enable_custom_integrations):
+    """Entities left on an alarm-owned device (the HA 2026.8 upgrade split,
+    or a device 1.0.0 created) move to the Source Sensor's device, keeping
+    their entity IDs, and the alarm-owned device is removed."""
+    device = _source_on_device(hass)
+    entry = MockConfigEntry(domain=DOMAIN, data=BASE_DATA)
+    entry.add_to_hass(hass)
+
+    alarm_device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id, identifiers=SOURCE_DEVICE_IDENTIFIERS
+    )
+    assert alarm_device.id != device.id
+    registry = er.async_get(hass)
+    before = [
+        registry.async_get_or_create(
+            platform, DOMAIN, unique_id, config_entry=entry, device_id=alarm_device.id
+        ).entity_id
+        for platform, unique_id in ALARM_ENTITIES
+    ]
+    # A user customization that a delete-and-recreate would lose
+    registry.async_update_entity(before[0], name="Garage alarm")
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert _alarm_entity_ids(hass) == before
+    _assert_linked_not_owned(hass, entry, device.id)
+    assert dr.async_get(hass).async_get(alarm_device.id) is None
+    assert registry.async_get(before[0]).name == "Garage alarm"
+
+    # Running the cleanup again on a later setup changes nothing
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert _alarm_entity_ids(hass) == before
+    _assert_linked_not_owned(hass, entry, device.id)
+
+
+async def test_source_without_device_leaves_entities_deviceless(
+    hass, enable_custom_integrations
+):
+    hass.states.async_set(SOURCE, "20.0", {"unit_of_measurement": "°C"})
+
+    entry, _ = await _setup_entry(hass, BASE_DATA)
+
+    _assert_linked_not_owned(hass, entry, None)

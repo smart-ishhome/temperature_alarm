@@ -6,9 +6,9 @@ from dataclasses import dataclass
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.device import async_entity_id_to_device
+from homeassistant.helpers.device_registry import AnyDeviceEntry
+from homeassistant.helpers.helper_integration import async_remove_helper_devices
 
 from .const import CONF_SOURCE_ENTITY, DOMAIN, PLATFORMS
 from .thresholds import async_remove_orphaned_entities
@@ -20,13 +20,14 @@ _LOGGER = logging.getLogger(__name__)
 class AlarmRuntimeData:
     """What the composition root resolves for the platforms.
 
-    device_info is ready-made: the Source Sensor's device attachment,
-    or None when the source has no device. Stored in hass.data (the
-    test harness's ConfigEntry predates entry.runtime_data).
+    device is the Source Sensor's device, which the alarm's entities
+    link to without owning it, or None when the Source Sensor has no
+    device.
+    Stored in hass.data.
     """
 
     source_entity_id: str
-    device_info: DeviceInfo | None
+    device: AnyDeviceEntry | None
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -34,18 +35,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     source_entity_id = entry.data[CONF_SOURCE_ENTITY]
+    device = async_entity_id_to_device(hass, source_entity_id)
 
-    # Attach to the Source Sensor's device if it has one
-    device_info = None
-    source_entry = er.async_get(hass).async_get(source_entity_id)
-    if source_entry and source_entry.device_id:
-        device = dr.async_get(hass).async_get(source_entry.device_id)
-        if device:
-            device_info = DeviceInfo(identifiers=device.identifiers)
+    # An alarm owns no device. Remove any it does own (a device created
+    # by 1.0.0 on HA 2026.8+, or HA's split of the formerly shared
+    # device), relinking its entities to the source device first.
+    async_remove_helper_devices(
+        hass,
+        helper_config_entry_id=entry.entry_id,
+        source_device_id=device.id if device else None,
+        remove_all_devices=True,
+    )
 
     hass.data[DOMAIN][entry.entry_id] = AlarmRuntimeData(
         source_entity_id=source_entity_id,
-        device_info=device_info,
+        device=device,
     )
     
     # Threshold Entities must be registered before the Alarm looks them
