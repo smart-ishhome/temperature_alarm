@@ -334,6 +334,11 @@ This project is licensed under the MIT License.
   - Fixed: a missing min/max no longer creates a phantom threshold
   - Fixed: trigger delay counts only source sensor updates; pending state clears when the alarm triggers
   - Internal: alarm logic extracted into a standalone tested core (102 tests)
+
+- **1.1.0** - Home Assistant 2026.8+ support
+  - Requires Home Assistant 2026.8.0 or newer (on older versions, stay on 1.0.0)
+  - Fixed: alarm and threshold entities appear on the source sensor's device again instead of a separate device; existing setups are moved back automatically, keeping entity IDs, names and thresholds
+  - Internal: tests run against Home Assistant 2026.9 (104 tests)
 ---
 
 **Need Help?** Check the [troubleshooting section](#troubleshooting) or enable debug logging to diagnose issues.

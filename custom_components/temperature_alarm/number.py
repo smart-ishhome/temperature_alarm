@@ -11,7 +11,8 @@ from homeassistant.components.number import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory
+from homeassistant.helpers.device_registry import AnyDeviceEntry
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AlarmRuntimeData
@@ -59,7 +60,7 @@ async def async_setup_entry(
         TemperatureThresholdNumber(
             entry=entry,
             source_entity_id=data.source_entity_id,
-            device_info=data.device_info,
+            device=data.device,
             threshold_type=kind,
             initial_value=initial_value[kind],
             unit=unit,
@@ -86,7 +87,7 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
         self,
         entry: ConfigEntry,
         source_entity_id: str,
-        device_info: DeviceInfo | None,
+        device: AnyDeviceEntry | None,
         threshold_type: str,
         initial_value: float | None,
         unit: str | None,
@@ -121,9 +122,8 @@ class TemperatureThresholdNumber(RestoreNumber, NumberEntity):
         else:
             self._attr_icon = "mdi:thermometer-plus"
         
-        # Device info - attach to source device if available
-        if device_info:
-            self._attr_device_info = device_info
+        # Link to the Source Sensor's device without owning it
+        self.device_entry = device
 
     async def async_added_to_hass(self) -> None:
         """Restore previous state when added to hass."""
